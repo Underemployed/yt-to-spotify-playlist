@@ -1,0 +1,4 @@
+venv
+secret.py
+*.pyc
+*.pyo
