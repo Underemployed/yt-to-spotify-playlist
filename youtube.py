@@ -22,7 +22,7 @@ def get_playlist_video_details(youtube_service, playlist_id = "PLJHtzsPP5ijNPtDW
             part='snippet', playlistId=playlist_id, maxResults=50, pageToken=page_token
         )
         response = request.execute()
-        video_details.extend([{'title': item['snippet']['title'], 'artist': item['snippet'].get('videoOwnerChannelTitle').strip("- Topic")} for item in response['items']])
+        video_details.extend([{'title': item['snippet']['title'], 'artist': item['snippet'].get('videoOwnerChannelTitle', '').strip("- Topic")} for item in response['items']])
         page_token = response.get('nextPageToken')
         if not page_token:
             break
@@ -39,4 +39,5 @@ youtube_service = build("youtube", "v3", developerKey=GOOGLE_API_KEY)
 
 all_songs = get_all_songs(youtube_service)
 all_songs_json = json.dumps(all_songs, indent=4)
-print(all_songs_json)
+with open('songs.json', 'w', encoding='utf8') as f:
+    json.dump(all_songs, f, ensure_ascii=False, indent=4)
