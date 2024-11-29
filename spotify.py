@@ -108,15 +108,12 @@ def callback():
             results = sp.search(q='artist:' + song['artist'] + ' track:' + song['title'], type='track')
 
             # If the song was found
-            if results['tracks']['items']:
-                # Get the first song from the search results
-                track = results['tracks']['items'][0]
-
-                # Get the song ID
-                track_id = track['id']
-
-                # Add the song to the playlist
-                sp.playlist_add_items(playlist_id, [track_id])
+            for track in results['tracks']['items']:
+                # Check if the track is a track (not a podcast or episode)
+                if track['type'] == 'track':
+                    track_id = track['id']
+                    sp.playlist_add_items(playlist_id, [track_id])
+                    break
 
 
     # Combine profile and playlist data to display
