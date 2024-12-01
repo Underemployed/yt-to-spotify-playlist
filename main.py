@@ -38,9 +38,12 @@ auth_query_parameters = {
     "scope": SCOPE,
     "client_id": CLIENT_ID
 }
-
+# GEMINI_AI
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-1.5-flash")
+from gemini_ai import GeminiAI, VideoDetailsParser
+gemini_ai = GeminiAI(api_key=GEMINI_API_KEY, model_name="gemini-1.5-flash")
+parser = VideoDetailsParser(gemini_ai)
 
 
 @app.route("/")
@@ -76,7 +79,10 @@ def callback():
 
 @app.route("/dashboard")
 def dashboard():
-    if 'access_token' not in session:
+    sp = spotipy.Spotify(auth=session['access_token'])
+    user_profile = sp.current_user()
+    console.log("")
+    if sp.current_user == None:
         return redirect('/auth')
     return render_template("dashboard.html")
 
@@ -91,8 +97,7 @@ from flask import Response, stream_with_context
 
 @app.route("/api/import-playlists")
 def import_playlists():
-    if 'access_token' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
+
 
     def generate():
         playlists = json.loads(request.args.get('playlists'))
@@ -108,52 +113,52 @@ def import_playlists():
                 user_profile = sp.current_user()
                 if sp.current_user == None:
                     return jsonify({'error': 'Not authenticated'}), 401
-                # Unfollow existing playlists with same name
-                message = f"Checking for existing playlists named: {playlist['playlistName']}"
-                print(message)
-                yield f"data: {message}\n\n"
-                
-                existing_playlists = sp.current_user_playlists()
-                print(existing_playlists)
-                for existing_playlist in existing_playlists['items']:
-                    if existing_playlist['name'] == playlist['playlistName']:
-                        message = f"Unfollowing existing playlist: {playlist['playlistName']}"
-                        print(message)
-                        yield f"data: {message}\n\n"
-                        sp.current_user_unfollow_playlist(existing_playlist['id'])
-                
+
+                # Create new playlist after checking for existing ones
                 new_playlist = sp.user_playlist_create(user_profile['id'], playlist['playlistName'])
                 videos = get_playlist_video_details(youtube_service, playlist['playlistId'])
                 
                 for video in videos:
                     try:
-                        search_results = sp.search(q=f"track:{video['title']} artist:{video['artist']}", type='track', limit=1)
-                        if search_results['tracks']['items']:
-                            track = search_results['tracks']['items'][0]
+                        # First attempt with basic search
+                        search_results = sp.search(q=f"track:{video['title']} artist:{video['artist']}", type='track', limit=3)
+                        
+                        # Filter out podcast results
+                        tracks = [track for track in search_results['tracks']['items'] if 'podcast' not in track['name'].lower()]
+                        
+                        # If no results, try with Gemini parsing
+                        if not tracks:
+                            parsed_details = parser.parse_video_details(video['title'], video['artist'])
+                            search_results = sp.search(
+                                q=f"track:{parsed_details['title']} artist:{parsed_details['artist']}", 
+                                type='track', 
+                                limit=3
+                            )
+                            tracks = [track for track in search_results['tracks']['items'] if 'podcast' not in track['name'].lower()]
+                        
+                        if tracks:
+                            track = tracks[0]
                             sp.playlist_add_items(new_playlist['id'], [track['id']])
-                            message = f"success: Added {video['title']} by {video['artist']}"
-                            # print(message)
+                            message = f"success: Added {track['name']} by {track['artists'][0]['name']}"
                             yield f"data: {message}\n\n"
                         else:
-                            message = f"warning: Not found: {video['title']} by {video['artist']}"
-                            print(message)
+                            message = f"warning: Not found: {video['title']}"
                             yield f"data: {message}\n\n"
+                            
                     except Exception as e:
-                        message = f"error: Failed to process {video['title']}: {str(e)}"
-                        print(message)
+                        message = f"error: Failed to process {video['title']}"
+                        print(f"Gemini Error {video['title']}: {str(e)}")
                         yield f"data: {message}\n\n"
                 
                 message = f"success: Created playlist '{playlist['playlistName']}' - {new_playlist['external_urls']['spotify']}"
-                print(message)
-                yield f"data: {message}\n\n"
+                print(message.split(':',1)[1].strip())
+                
             except Exception as e:
-                message = f"error: Failed to import playlist {playlist['playlistName']}: {str(e)}"
-                print(message)
-                yield f"data: {message}\n\n"
+                message = f"error: Failed to import playlist {playlist['playlistName']}"
+                print( f"Failed to import playlist {playlist['playlistName']}: {str(e)}")
+
         
-        message = "All imports completed"
-        # print(message)
-        yield f"data: {message}\n\n"
+        print("All imports completed")
 
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
 

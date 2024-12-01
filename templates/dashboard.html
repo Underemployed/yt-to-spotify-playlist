@@ -82,11 +82,11 @@
             setInterval(() => {
                 progressLog.scrollTop = progressLog.scrollHeight;
             }, 15000);
-            
+
+
             eventSource.onmessage = function (event) {
                 const p = document.createElement('p');
                 const data = event.data;
-                
 
                 if (data.includes('success:')) {
                     if (data.includes('spotify')) {
@@ -108,12 +108,12 @@
 
                 progressLog.appendChild(p);
                 progressLog.scrollTop = progressLog.scrollHeight;
-            
 
                 if (data === 'All imports completed') {
                     eventSource.close();
                 }
             };
+
 
         }
     </script>
