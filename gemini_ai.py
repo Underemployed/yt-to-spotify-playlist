@@ -13,7 +13,11 @@ class GeminiAI:
         return genai.GenerativeModel(self.model_name)
 
     def generate_content(self, prompt, generation_config):
-        return self.model.generate_content(prompt, generation_config=generation_config)
+        try:
+            return self.model.generate_content(prompt, generation_config=generation_config)
+        except Exception as e:
+            print(f"Gemini Error: {e}")
+            return None
 
 class VideoDetailsParser:
     def __init__(self, gemini_ai):
@@ -47,23 +51,28 @@ class VideoDetailsParser:
         Title: [song title]
         """
         
-        response = self.gemini_ai.generate_content(prompt, generation_config)
-        parsed = response.text.strip().split('\n')
-        
-        print(f"\nInput Song: {video_title}")
-        print(f"Input Channel: {channel_name}")
-        
-        artist = parsed[0].replace('Artist: ', '').strip()
-        title = parsed[1].replace('Title: ', '').strip()
-        
-        print(f"Extracted Artist: {artist}  Song: {title}\n")
-        
-        return {
-            'artist': artist,
-            'title': title
-        }
-    
+        try:
+            response = self.gemini_ai.generate_content(prompt, generation_config)
+            if response is None:
+                return None
 
+            parsed = response.text.strip().split('\n')
+            
+            print(f"\nInput Song: {video_title}")
+            print(f"Input Channel: {channel_name}")
+            
+            artist = parsed[0].replace('Artist: ', '').strip()
+            title = parsed[1].replace('Title: ', '').strip()
+            
+            print(f"Extracted Artist: {artist}  Song: {title}\n")
+            
+            return {
+                'artist': artist,
+                'title': title
+            }
+        except Exception as e:
+            print(f"Gemini Error: {e}")
+            return None
 
 if __name__ == "__main__":
     gemini_ai = GeminiAI(api_key=GEMINI_API_KEY, model_name="gemini-1.5-flash")
