@@ -1,4 +1,4 @@
-from secret import GOOGLE_API_KEY, SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET
+from secret import GOOGLE_API_KEY, SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET ,GEMINI_API_KEY
 from spotipy.oauth2 import SpotifyOAuth
 import spotipy
 import json
@@ -7,6 +7,8 @@ from flask import Flask, request, redirect, g, render_template, make_response, j
 import requests
 from urllib.parse import quote
 from youtube import get_channel_playlists, get_playlist_video_details
+from google.generativeai import GenerativeModel
+import google.generativeai as genai
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Change this to a secure secret key
@@ -36,6 +38,10 @@ auth_query_parameters = {
     "scope": SCOPE,
     "client_id": CLIENT_ID
 }
+
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel("gemini-1.5-flash")
+
 
 @app.route("/")
 def index():
@@ -100,7 +106,8 @@ def import_playlists():
             
             try:
                 user_profile = sp.current_user()
-                print(sp.current_user)
+                if sp.current_user == None:
+                    return jsonify({'error': 'Not authenticated'}), 401
                 # Unfollow existing playlists with same name
                 message = f"Checking for existing playlists named: {playlist['playlistName']}"
                 print(message)

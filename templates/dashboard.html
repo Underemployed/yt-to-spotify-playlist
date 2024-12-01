@@ -79,24 +79,42 @@
             document.getElementById('progressContainer').classList.remove('hidden');
 
             const eventSource = new EventSource(`/api/import-playlists?playlists=${encodeURIComponent(JSON.stringify(selected))}`);
-
+            setInterval(() => {
+                progressLog.scrollTop = progressLog.scrollHeight;
+            }, 15000);
+            
             eventSource.onmessage = function (event) {
                 const p = document.createElement('p');
-                p.textContent = event.data;
-                if (event.data.includes('success:')) {
-                    p.className = 'text-green-600';
-                } else if (event.data.includes('warning:')) {
-                    p.className = 'text-yellow-600';
-                } else if (event.data.includes('error:')) {
-                    p.className = 'text-red-600';
-                }
-                progressLog.appendChild(p);
-                // progressLog.scrollTop = progressLog.scrollHeight;
+                const data = event.data;
+                
 
-                if (event.data === 'All imports completed') {
+                if (data.includes('success:')) {
+                    if (data.includes('spotify')) {
+                        const [message, url] = data.split(' - ');
+                        p.innerHTML = `${message} - <a href="${url}" target="_blank" class="text-blue-500 hover:underline">${url}</a>`;
+                    } else {
+                        p.textContent = data;
+                    }
+                    p.className = 'text-green-600';
+                } else if (data.includes('warning:')) {
+                    p.textContent = data;
+                    p.className = 'text-yellow-600';
+                } else if (data.includes('error:')) {
+                    p.textContent = data;
+                    p.className = 'text-red-600';
+                } else {
+                    p.textContent = data;
+                }
+
+                progressLog.appendChild(p);
+                progressLog.scrollTop = progressLog.scrollHeight;
+            
+
+                if (data === 'All imports completed') {
                     eventSource.close();
                 }
             };
+
         }
     </script>
 </body>
