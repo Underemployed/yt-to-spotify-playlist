@@ -50,6 +50,7 @@ class VideoDetailsParser:
         Artist: [main artist name]
         Title: [song title]
         """
+        # optinal add like title is priorty or something
         
         try:
             response = self.gemini_ai.generate_content(prompt, generation_config)
@@ -57,21 +58,27 @@ class VideoDetailsParser:
                 return None
 
             parsed = response.text.strip().split('\n')
-            
-            print(f"\nInput Song: {video_title}")
-            print(f"Input Channel: {channel_name}")
+            print("\n--- Input Details ---")
+            print(f"Song Title: {video_title}")
+            print(f"Channel Name: {channel_name}")
+            print("---------------------\n")
             
             artist = parsed[0].replace('Artist: ', '').strip()
             title = parsed[1].replace('Title: ', '').strip()
             
-            print(f"Extracted Artist: {artist}  Song: {title}\n")
+            print("--- Extracted Details ---")
+            print(f"Artist: {artist}")
+            print(f"Song Title: {title}")
+            print("-------------------------\n")
             
             return {
                 'artist': artist,
                 'title': title
             }
         except Exception as e:
-            print(f"Gemini Error: {e}")
+            print("\n--- Gemini Error ---")
+            print(f"Error: {e}")
+            print("---------------------\n")
             return None
 
 if __name__ == "__main__":

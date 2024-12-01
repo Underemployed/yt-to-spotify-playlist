@@ -9,60 +9,58 @@
 <body class="bg-gray-100 p-8">
     <div class="max-w-4xl mx-auto">
         <h1 class="text-3xl font-bold mb-8">YouTube to Spotify Playlist Porter</h1>
-          <div class="mb-8">
-              <input type="text" id="channelId" placeholder="Enter YouTube Channel ID" class="w-full p-2 border rounded">
-              <button id="fetchButton" onclick="fetchPlaylists()" class="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                  Fetch Playlists
-              </button>
-              <div id="loadingSpinner" class="hidden mt-2">
-                  <svg class="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-              </div>
-          </div>
 
-          <div id="playlistsContainer" class="mb-8 hidden">
-              <h2 class="text-xl font-semibold mb-4">Available Playlists</h2>
-              <div id="playlists-list" class="space-y-2 mb-4"></div>
-              <button id="importButton" 
-                  class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-                  Import Selected Playlists
-              </button>
-          </div>
+        <div class="mb-8">
+            <input type="text" id="channelId" placeholder="Enter YouTube Channel ID" class="w-full p-2 border rounded">
+            <button id="fetchButton" onclick="fetchPlaylists()"
+                class="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                Fetch Playlists
+            </button>
+            <div id="loadingSpinner" class="hidden mt-2">
+                <svg class="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none"
+                    viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                </svg>
+            </div>
+        </div>
 
-          <div id="progressContainer" class="hidden">
-              <h2 class="text-xl font-semibold mb-4">Import Progress</h2>
-              <div id="progressLog" class="bg-white p-4 rounded shadow-sm h-96 overflow-y-auto"></div>
-          </div>
-      </div>
+        <div id="playlistsContainer" class="mb-8 hidden">
+            <h2 class="text-xl font-semibold mb-4">Available Playlists</h2>
+            <div id="playlists-list" class="space-y-2 mb-4"></div>
+            <button id="importButton" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                Import Selected Playlists
+            </button>
+        </div>
 
-      <script>
+        <div id="progressContainer" class="hidden">
+            <h2 class="text-xl font-semibold mb-4">Import Progress</h2>
+            <div id="progressLog" class="bg-white p-4 rounded shadow-sm h-96 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <script>
         let importInProgress = false;
 
         async function fetchPlaylists() {
             const fetchButton = document.getElementById('fetchButton');
             const loadingSpinner = document.getElementById('loadingSpinner');
 
-            // Disable button and show spinner
             fetchButton.disabled = true;
-            fetchButton.classList.add('opacity-50', 'cursor-not-allowed');
             loadingSpinner.classList.remove('hidden');
 
             try {
-                const channelId = document.getElementById('channelId').value;
                 const response = await fetch('/api/fetch-playlists', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ channelId })
+                    body: JSON.stringify({ channelId: document.getElementById('channelId').value })
                 });
-
                 const playlists = await response.json();
                 displayPlaylists(playlists);
             } finally {
-                // Re-enable button and hide spinner
                 fetchButton.disabled = false;
-                fetchButton.classList.remove('opacity-50', 'cursor-not-allowed');
                 loadingSpinner.classList.add('hidden');
             }
         }
@@ -70,26 +68,20 @@
         function displayPlaylists(playlists) {
             const container = document.getElementById('playlists-list');
             container.innerHTML = '';
-
             Object.entries(playlists).forEach(([name, id]) => {
-                const div = document.createElement('div');
-                div.className = 'flex items-center space-x-2';
-                div.innerHTML = `
-                    <input type="checkbox" id="${id}" class="playlist-checkbox">
-                    <label for="${id}">${name}</label>
-                `;
-                container.appendChild(div);
+                container.innerHTML += `
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" id="${id}" class="playlist-checkbox">
+                        <label for="${id}">${name}</label>
+                    </div>`;
             });
-
             document.getElementById('playlistsContainer').classList.remove('hidden');
         }
 
-        document.getElementById('importButton').addEventListener('click', function() {
+        document.getElementById('importButton').addEventListener('click', function () {
             if (importInProgress) return;
-
             importInProgress = true;
-            this.style.display = 'none';  // Hide the button
-
+            this.style.display = 'none';
             importSelectedPlaylists();
         });
 
@@ -110,28 +102,23 @@
             document.getElementById('progressContainer').classList.remove('hidden');
 
             const eventSource = new EventSource(`/api/import-playlists?playlists=${encodeURIComponent(JSON.stringify(selected))}`);
-            setInterval(() => {
-                progressLog.scrollTop = progressLog.scrollHeight;
-            }, 15000);
 
             eventSource.onmessage = function (event) {
                 const p = document.createElement('p');
                 const data = event.data;
 
                 if (data.includes('success:')) {
-                    if (data.includes('spotify')) {
-                        const [message, url] = data.split(' - ');
-                        p.innerHTML = `${message} - <a href="${url}" target="_blank" class="text-blue-500 hover:underline">${url}</a>`;
-                    } else {
-                        p.textContent = data;
-                    }
                     p.className = 'text-green-600';
+                    const message = data.replace('success:', '').trim();
+                    p.innerHTML = message.includes('spotify') ?
+                        `${message.split(' - ')[0]} - <a href="${message.split(' - ')[1]}" target="_blank" class="text-blue-500 hover:underline">${message.split(' - ')[1]}</a>` :
+                        message;
                 } else if (data.includes('warning:')) {
-                    p.textContent = data;
                     p.className = 'text-yellow-600';
+                    p.textContent = data.replace('warning:', '').trim();
                 } else if (data.includes('error:')) {
-                    p.textContent = data;
                     p.className = 'text-red-600';
+                    p.textContent = data.replace('error:', '').trim();
                 } else {
                     p.textContent = data;
                 }

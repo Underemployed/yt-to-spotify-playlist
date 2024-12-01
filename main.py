@@ -9,7 +9,7 @@ from urllib.parse import quote
 from youtube import get_channel_playlists, get_playlist_video_details
 import google.generativeai as genai
 from gemini_ai import GeminiAI, VideoDetailsParser
-
+import time
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'
 
@@ -45,7 +45,7 @@ auth_query_parameters = {
 def refresh_spotify_token():
     if 'refresh_token' not in session:
         return False
-        
+    
     refresh_payload = {
         'grant_type': 'refresh_token',
         'refresh_token': session['refresh_token'],
@@ -63,61 +63,54 @@ def refresh_spotify_token():
     return False
 
 def get_spotify_client():
-    sp = spotipy.Spotify(auth=session['access_token'])
+    sp = spotipy.Spotify(
+        auth=session['access_token'],
+        requests_timeout=20
+    )
     try:
         sp.current_user()
         return sp
     except:
         if refresh_spotify_token():
-            return spotipy.Spotify(auth=session['access_token'])
+            return spotipy.Spotify(
+                auth=session['access_token'],
+                requests_timeout=20
+            )
         return None
-
 
 def check_auth():
     if 'access_token' not in session:
         return False
-    sp = spotipy.Spotify(auth=session['access_token'])
-    try:
-        sp.current_user()
-        return True
-    except:
-        return False
+    sp = get_spotify_client()
+    return sp is not None
 
 @app.route("/")
 def index():
-    if check_auth():
-        return redirect('/dashboard')
-    return redirect('/auth')
+    return redirect('/dashboard' if check_auth() else '/auth')
 
 @app.route("/auth")
 def auth():
     url_args = "&".join([f"{key}={quote(val)}" for key, val in auth_query_parameters.items()])
-    auth_url = f"{SPOTIFY_AUTH_URL}/?{url_args}"
-    return redirect(auth_url)
+    return redirect(f"{SPOTIFY_AUTH_URL}/?{url_args}")
 
 @app.route("/callback/")
 def callback():
-    auth_token = request.args['code']
     code_payload = {
         "grant_type": "authorization_code",
-        "code": str(auth_token),
+        "code": str(request.args['code']),
         "redirect_uri": REDIRECT_URI,
         'client_id': CLIENT_ID,
         'client_secret': CLIENT_SECRET,
     }
     
-    post_request = requests.post(SPOTIFY_TOKEN_URL, data=code_payload)
-    response_data = post_request.json()
+    response_data = requests.post(SPOTIFY_TOKEN_URL, data=code_payload).json()
     session['access_token'] = response_data["access_token"]
     session['refresh_token'] = response_data["refresh_token"]
-    
     return redirect('/dashboard')
 
 @app.route("/dashboard")
 def dashboard():
-    if not check_auth():
-        return redirect('/auth')
-    return render_template("dashboard.html")
+    return redirect('/auth') if not check_auth() else render_template("dashboard.html")
 
 @app.route("/api/fetch-playlists", methods=['POST'])
 def fetch_playlists():
@@ -130,12 +123,12 @@ def fetch_playlists():
 @app.route("/api/import-playlists")
 def import_playlists():
     def generate():
-        if not check_auth():
+        sp = get_spotify_client()
+        if not sp:
             yield f"data: error: Not authenticated\n\n"
             return
 
         playlists = json.loads(request.args.get('playlists'))
-        sp = spotipy.Spotify(auth=session['access_token'])
         user_profile = sp.current_user()
 
         for playlist in playlists:
@@ -143,6 +136,7 @@ def import_playlists():
             yield f"data: {message}\n\n"
             
             try:
+                sp = get_spotify_client()
                 # Unfollow existing playlists with same name
                 current_playlists = sp.current_user_playlists()
                 for existing_playlist in current_playlists['items']:
@@ -155,6 +149,9 @@ def import_playlists():
                 
                 for video in videos:
                     try:
+                        sp = get_spotify_client()
+                        if video['title']=="Deleted video":
+                            continue
                         if 'release' == video['title'].lower():
                             video["title"] = ""
                             search_results = sp.search(q=f"track:{video['title']}", type='track', limit=3)
@@ -164,59 +161,45 @@ def import_playlists():
                         
                         if not tracks:
                             parsed_details = parser.parse_video_details(video['title'], video['artist'])
+                            sp = get_spotify_client()
                             search_results = sp.search(
                                 q=f"track:{parsed_details['title']} artist:{parsed_details['artist']}", 
                                 type='track', 
                                 limit=3
                             )
                             tracks = [track for track in search_results['tracks']['items'] if 'podcast' not in track['name'].lower()]
-                        
+                            print(f"Gemini")
                         if tracks:
                             track = tracks[0]
+                            sp = get_spotify_client()
                             sp.playlist_add_items(new_playlist['id'], [track['id']])
                             message = f"success: Added {track['name']} by {track['artists'][0]['name']}"
                             yield f"data: {message}\n\n"
+                            print(message.split(':',1)[1])
                         else:
                             message = f"warning: Not found: {video['title']}"
                             yield f"data: {message}\n\n"
+                            print(message.split(':',1)[1])
                             
                     except Exception as e:
-                        message = f"error: Failed to process {video['title']}"
+                        message = f"error: Failed to process {video['title']} - {str(e)}"
                         yield f"data: {message}\n\n"
-                if not tracks:
-                    try:
-                        search_results = sp.search(q=f"track:{video['title']}", type='track', limit=3)
-                        tracks = [track for track in search_results['tracks']['items'] if 'podcast' not in track['name'].lower()]
-                        
-                        if not tracks:
-                            details = parser.parse_video_details(video['title'], video['artist'])
-                            search_results = sp.search(
-                                q=f"track:{details['title']} artist:{details['artist']}", 
-                                type='track', 
-                                limit=3
-                            )
-                            tracks = [track for track in search_results['tracks']['items'] if 'podcast' not in track['name'].lower()]
-                        
-                        if tracks:
-                            track = tracks[0]
-                            sp.playlist_add_items(new_playlist['id'], [track['id']])
-                            message = f"success: Added {track['name']} by {track['artists'][0]['name']}"
-                            yield f"data: {message}\n\n"
-                        else:
-                            message = f"warning: Not found: {video['title']}"
-                            yield f"data: {message}\n\n"
-                    except Exception as e:
-                        message = f"error: Failed to process {video['title']}"
-                        yield f"data: {message}\n\n"
+                        print(message.split(':',1)[1])
+                    
+                    # Ensure only two requests per second
+                    time.sleep(0.5)
                 
                 message = f"success: Created playlist '{playlist['playlistName']}' - {new_playlist['external_urls']['spotify']}"
                 yield f"data: {message}\n\n"
+                print(message.split(':',1)[1])
                 
             except Exception as e:
-                message = f"error: Failed to import playlist {playlist['playlistName']}"
+                message = f"error: Failed to import playlist {playlist['playlistName']} - {str(e)}"
                 yield f"data: {message}\n\n"
+                print(message.split(':',1)[1])
         
         yield "data: All imports completed\n\n"
+        print("All imports completed")
 
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
