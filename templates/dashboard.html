@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Dashboard - YouTube to Spotify Playlist Porter</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8">YouTube to Spotify Playlist Porter</h1>
+
+        <div class="mb-8">
+            <input type="text" id="channelId" placeholder="Enter YouTube Channel ID" class="w-full p-2 border rounded">
+            <button onclick="fetchPlaylists()" class="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                Fetch Playlists
+            </button>
+        </div>
+
+        <div id="playlistsContainer" class="mb-8 hidden">
+            <h2 class="text-xl font-semibold mb-4">Available Playlists</h2>
+            <div id="playlists-list" class="space-y-2 mb-4"></div>
+            <button onclick="importSelectedPlaylists()"
+                class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                Import Selected Playlists
+            </button>
+        </div>
+
+        <div id="progressContainer" class="hidden">
+            <h2 class="text-xl font-semibold mb-4">Import Progress</h2>
+            <div id="progressLog" class="bg-white p-4 rounded shadow-sm h-96 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchPlaylists() {
+            const channelId = document.getElementById('channelId').value;
+            const response = await fetch('/api/fetch-playlists', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ channelId })
+            });
+
+            const playlists = await response.json();
+            displayPlaylists(playlists);
+        }
+
+        function displayPlaylists(playlists) {
+            const container = document.getElementById('playlists-list');
+            container.innerHTML = '';
+
+            Object.entries(playlists).forEach(([name, id]) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center space-x-2';
+                div.innerHTML = `
+                    <input type="checkbox" id="${id}" class="playlist-checkbox">
+                    <label for="${id}">${name}</label>
+                `;
+                container.appendChild(div);
+            });
+
+            document.getElementById('playlistsContainer').classList.remove('hidden');
+        }
+
+        async function importSelectedPlaylists() {
+            const selected = Array.from(document.querySelectorAll('.playlist-checkbox:checked'))
+                .map(checkbox => ({
+                    playlistId: checkbox.id,
+                    playlistName: checkbox.nextElementSibling.textContent.trim()
+                }));
+
+            if (selected.length === 0) {
+                alert('Please select at least one playlist');
+                return;
+            }
+
+            const progressLog = document.getElementById('progressLog');
+            progressLog.innerHTML = '';
+            document.getElementById('progressContainer').classList.remove('hidden');
+
+            const eventSource = new EventSource(`/api/import-playlists?playlists=${encodeURIComponent(JSON.stringify(selected))}`);
+
+            eventSource.onmessage = function (event) {
+                const p = document.createElement('p');
+                p.textContent = event.data;
+                if (event.data.includes('success:')) {
+                    p.className = 'text-green-600';
+                } else if (event.data.includes('warning:')) {
+                    p.className = 'text-yellow-600';
+                } else if (event.data.includes('error:')) {
+                    p.className = 'text-red-600';
+                }
+                progressLog.appendChild(p);
+                // progressLog.scrollTop = progressLog.scrollHeight;
+
+                if (event.data === 'All imports completed') {
+                    eventSource.close();
+                }
+            };
+        }
+    </script>
+</body>
+
+</html>
