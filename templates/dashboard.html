@@ -11,7 +11,9 @@
         <h1 class="text-3xl font-bold mb-8">YouTube to Spotify Playlist Porter</h1>
 
         <div class="mb-8">
-            <input type="text" id="channelId" placeholder="Enter YouTube Channel ID" class="w-full p-2 border rounded">
+            <input type="text" id="channelId" placeholder="Enter YouTube Channel ID" class="w-full p-2 border rounded"
+                autocomplete="on" list="channelsList">
+            <datalist id="channelsList"></datalist>
             <button id="fetchButton" onclick="fetchPlaylists()"
                 class="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
                 Fetch Playlists
@@ -43,6 +45,23 @@
 
     <script>
         let importInProgress = false;
+        function loadChannels() {
+            const channelsList = document.getElementById('channelsList');
+            const channels = JSON.parse(localStorage.getItem('channels')) || [];
+            channelsList.innerHTML = '';
+            channels.forEach(channelId => {
+                const option = document.createElement('option');
+                option.value = channelId;
+                channelsList.appendChild(option);
+            });
+            console.log("hi");
+
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            loadChannels();
+        });
+
 
         async function fetchPlaylists() {
             const fetchButton = document.getElementById('fetchButton');
@@ -56,15 +75,28 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ channelId: document.getElementById('channelId').value })
+
                 });
                 const playlists = await response.json();
+                storeChannelId(document.getElementById('channelId').value);
                 displayPlaylists(playlists);
             } finally {
                 fetchButton.disabled = false;
                 loadingSpinner.classList.add('hidden');
             }
         }
+        function storeChannelId(channelId) {
+            let channels = JSON.parse(localStorage.getItem('channels')) || [];
+            if (!channels.includes(channelId)) {
+                channels.push(channelId);
+                localStorage.setItem('channels', JSON.stringify(channels));
+            }
+        }
 
+        document.getElementById('fetchButton').addEventListener('click', function () {
+            const channelId = document.getElementById('channelId').value;
+            storeChannelId(channelId);
+        });
         function displayPlaylists(playlists) {
             const container = document.getElementById('playlists-list');
             container.innerHTML = '';
