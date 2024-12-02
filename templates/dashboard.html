@@ -157,6 +157,11 @@
 
                 progressLog.appendChild(p);
                 progressLog.scrollTop = progressLog.scrollHeight;
+                document.addEventListener('keydown', function(event) {
+                    if (event.key === 'ArrowDown') {
+                        progressLog.scrollTop = progressLog.scrollHeight;
+                    }
+                });
 
                 if (data === 'All imports completed') {
                     importInProgress = false;

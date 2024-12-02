@@ -1,5 +1,5 @@
 
-from secret import GOOGLE_API_KEY, SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, GEMINI_API_KEY
+from secret import GOOGLE_API_KEY, SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, GEMINI_API_KEYS
 from spotipy.oauth2 import SpotifyOAuth
 import spotipy
 import json
@@ -16,8 +16,7 @@ app.secret_key = 'your-secret-key-here'
 
 # Initialize services
 youtube_service = build("youtube", "v3", developerKey=GOOGLE_API_KEY)
-genai.configure(api_key=GEMINI_API_KEY)
-gemini_ai = GeminiAI(api_key=GEMINI_API_KEY, model_name="gemini-1.5-flash")
+gemini_ai = GeminiAI(api_key=GEMINI_API_KEYS[0], model_name="gemini-1.5-flash")
 parser = VideoDetailsParser(gemini_ai)
 
 # Client Keys and Config
@@ -83,7 +82,7 @@ def check_auth():
 
 @app.route("/")
 def index():
-    return redirect('/') if not check_auth() else render_template('dashboard.html')
+    return redirect('/auth')
 
 @app.route("/auth")
 def auth():
@@ -131,6 +130,7 @@ def import_playlists():
         for playlist in playlists:
             message = f"Starting import of playlist: {playlist['playlistName']}"
             yield f"data: {message}\n\n"
+            print(f"Processing playlist: {playlist['playlistName']}")
             
             try:
                 sp = get_spotify_client()
@@ -140,52 +140,81 @@ def import_playlists():
                     if existing_playlist['name'] == playlist['playlistName']:
                         sp.current_user_unfollow_playlist(existing_playlist['id'])
                         yield f"data: Removed existing playlist: {playlist['playlistName']}\n\n"
+                        print(f"Removed existing playlist: {playlist['playlistName']}")
 
                 new_playlist = sp.user_playlist_create(user_profile['id'], playlist['playlistName'])
                 videos = get_playlist_video_details(youtube_service, playlist['playlistId'])
                 
+                # Batch process videos in groups of 50 (Spotify API limit)
+                batch_size = 50
+                track_ids = []
+                
                 for video in videos:
                     try:
                         sp = get_spotify_client()
-                        if video['title']=="Deleted video":
+                        if video['title'] == "Deleted video":
                             continue
-                        if 'release' == video['title'].lower():
-                            video["title"] = ""
-                            search_results = sp.search(q=f"track:{video['title']}", type='track', limit=3)
-                        else:
-                            search_results = sp.search(q=f"track:{video['title']} artist:{video['artist']}", type='track', limit=3)
-                        tracks = [track for track in search_results['tracks']['items'] if 'podcast' not in track['name'].lower()]
-                        
-                        if not tracks:
-                            parsed_details = parser.parse_video_details(video['title'], video['artist'])
-                            sp = get_spotify_client()
-                            search_results = sp.search(
-                                q=f"track:{parsed_details['title']} artist:{parsed_details['artist']}", 
-                                type='track', 
-                                limit=3
-                            )
-                            tracks = [track for track in search_results['tracks']['items'] if 'podcast' not in track['name'].lower()]
-                            print(f"Gemini")
+                            
+                        search_query = (f"track:{video['title']} artist:{video['artist']}" 
+                                      if video['artist'].lower() != 'release' 
+                                      else f"track:{video['title']}")
+                        if video['artist'].lower() == 'release' :
+                            video['artist'] = ""
+          
+                        search_results = sp.search(q=search_query, type='track', limit=3)
+                        tracks = [track for track in search_results['tracks']['items'] 
+                                if 'podcast' not in track['name'].lower()]
+
+                        parsed_details = parser.parse_video_details(video['title'], video['artist'])
+                        sp = get_spotify_client()
+                        search_query = (f"track:{parsed_details['title']} artist:{parsed_details['artist']}" 
+                                      if parsed_details['artist'].strip() != "" and parsed_details['artist'].strip().lower() != "blank"
+                                      else f"track:{parsed_details['title']}")
+                        search_results = sp.search(q=search_query, type='track', limit=3)
+                        tracks = [track for track in search_results['tracks']['items'] 
+                                  if 'podcast' not in track['name'].lower()]
+                        print("Using Gemini for parsing")
+                        # delay to avoid gemini
+                        time.sleep(0.5)
+
+
                         if tracks:
                             track = tracks[0]
-                            sp = get_spotify_client()
-                            sp.playlist_add_items(new_playlist['id'], [track['id']])
-                            message = f"success: Added {track['name']} by {track['artists'][0]['name']}"
+                            track_ids.append(track['id'])
+                            message = f"success: Found {track['name']} by {track['artists'][0]['name']}"
                             yield f"data: {message}\n\n"
                             print(message.split(':',1)[1])
+                            
+                            # Batch update when we reach batch_size
+                            if len(track_ids) >= batch_size:
+                                sp = get_spotify_client()
+                                sp.playlist_add_items(new_playlist['id'], track_ids)
+                                message = f"success: Added batch of {len(track_ids)} tracks"
+                                yield f"data: {message}\n\n"
+                                print(f"Batch update: Added {len(track_ids)} tracks")
+                                track_ids = []
                         else:
                             message = f"warning: Not found: {video['title']}"
                             yield f"data: {message}\n\n"
                             print(message.split(':',1)[1])
+
+                
+
                             
                     except Exception as e:
                         message = f"error: Failed to process {video['title']} - {str(e)}"
                         yield f"data: {message}\n\n"
                         print(message.split(':',1)[1])
                     
-                    # Ensure only two requests per second
-                    time.sleep(0.5)
                 
+                # Add remaining tracks in final batch
+                if track_ids:
+                    sp = get_spotify_client()
+                    sp.playlist_add_items(new_playlist['id'], track_ids)
+                    message = f"success: Added final batch of {len(track_ids)} tracks"
+                    yield f"data: {message}\n\n"
+                    print(f"Final batch update: Added {len(track_ids)} tracks")
+
                 message = f"success: Created playlist '{playlist['playlistName']}' - {new_playlist['external_urls']['spotify']}"
                 yield f"data: {message}\n\n"
                 print(message.split(':',1)[1])
