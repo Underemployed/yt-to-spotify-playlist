@@ -13,7 +13,8 @@ import time
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'
 
-# Initialize services
+# Initialize serv
+# ices
 youtube_service = build("youtube", "v3", developerKey=GOOGLE_API_KEY)
 genai.configure(api_key=GEMINI_API_KEY)
 gemini_ai = GeminiAI(api_key=GEMINI_API_KEY, model_name="gemini-1.5-flash")
@@ -137,7 +138,6 @@ def import_playlists():
             
             try:
                 sp = get_spotify_client()
-                # Unfollow existing playlists with same name
                 current_playlists = sp.current_user_playlists()
                 for existing_playlist in current_playlists['items']:
                     if existing_playlist['name'] == playlist['playlistName']:
@@ -147,13 +147,16 @@ def import_playlists():
                 new_playlist = sp.user_playlist_create(user_profile['id'], playlist['playlistName'])
                 videos = get_playlist_video_details(youtube_service, playlist['playlistId'])
                 
+                track_batch = []
+                
                 for video in videos:
                     try:
                         sp = get_spotify_client()
                         if video['title']=="Deleted video":
                             continue
-                        if 'release' == video['title'].lower():
-                            video["title"] = ""
+                        
+                        if 'release' == video['artist'].lower():
+                            video["artist"] = ""
                             search_results = sp.search(q=f"track:{video['title']}", type='track', limit=3)
                         else:
                             search_results = sp.search(q=f"track:{video['title']} artist:{video['artist']}", type='track', limit=3)
@@ -164,18 +167,24 @@ def import_playlists():
                             sp = get_spotify_client()
                             search_results = sp.search(
                                 q=f"track:{parsed_details['title']} artist:{parsed_details['artist']}", 
-                                type='track', 
+                                type='track',
                                 limit=3
                             )
                             tracks = [track for track in search_results['tracks']['items'] if 'podcast' not in track['name'].lower()]
                             print(f"Gemini")
+                            
                         if tracks:
                             track = tracks[0]
-                            sp = get_spotify_client()
-                            sp.playlist_add_items(new_playlist['id'], [track['id']])
-                            message = f"success: Added {track['name']} by {track['artists'][0]['name']}"
+                            track_batch.append(track['id'])
+                            message = f"success: Found {track['name']} by {track['artists'][0]['name']}"
                             yield f"data: {message}\n\n"
-                            print(message.split(':',1)[1])
+                            
+                            # Add tracks in batches of 100
+                            if len(track_batch) >= 100:
+                                sp = get_spotify_client()
+                                sp.playlist_add_items(new_playlist['id'], track_batch)
+                                yield f"data: Added batch of {len(track_batch)} tracks\n\n"
+                                track_batch = []
                         else:
                             message = f"warning: Not found: {video['title']}"
                             yield f"data: {message}\n\n"
@@ -186,8 +195,13 @@ def import_playlists():
                         yield f"data: {message}\n\n"
                         print(message.split(':',1)[1])
                     
-                    # Ensure only two requests per second
                     time.sleep(0.5)
+                
+                # Add remaining tracks in the batch
+                if track_batch:
+                    sp = get_spotify_client()
+                    sp.playlist_add_items(new_playlist['id'], track_batch)
+                    yield f"data: Added final batch of {len(track_batch)} tracks\n\n"
                 
                 message = f"success: Created playlist '{playlist['playlistName']}' - {new_playlist['external_urls']['spotify']}"
                 yield f"data: {message}\n\n"
@@ -198,10 +212,11 @@ def import_playlists():
                 yield f"data: {message}\n\n"
                 print(message.split(':',1)[1])
         
-        yield "data: All imports completed\n\n"
+        yield "data: All imports completed\n---------------------------------------\n"
         print("All imports completed")
 
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
+
 if __name__ == "__main__":
-    app.run(debug=True, port=PORT)
+    app.run(debug=False, port=PORT)

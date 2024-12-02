@@ -54,6 +54,7 @@ def get_all_songs(youtube_service ,channel_id="UCW15L5aHUcW6sS_NPUYkd0A"):
         all_songs[playlist_name] = get_playlist_video_details(youtube_service, playlist_id)
     print(all_songs, "\n======================\n")
     return all_songs
+
 if __name__ == "__main__":
     youtube_service = build("youtube", "v3", developerKey=GOOGLE_API_KEY)
 
