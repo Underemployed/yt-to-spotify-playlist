@@ -1,3 +1,4 @@
+
 from secret import GOOGLE_API_KEY, SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, GEMINI_API_KEY
 from spotipy.oauth2 import SpotifyOAuth
 import spotipy
@@ -41,7 +42,6 @@ auth_query_parameters = {
     "client_id": CLIENT_ID
 }
 
-
 def refresh_spotify_token():
     if 'refresh_token' not in session:
         return False
@@ -63,19 +63,16 @@ def refresh_spotify_token():
     return False
 
 def get_spotify_client():
-    sp = spotipy.Spotify(
-        auth=session['access_token'],
-        requests_timeout=20
-    )
+    if 'access_token' not in session:
+        return None
+    sp = spotipy.Spotify(auth=session['access_token'], requests_timeout=20)
     try:
         sp.current_user()
         return sp
-    except:
+    except spotipy.exceptions.SpotifyException:
         if refresh_spotify_token():
-            return spotipy.Spotify(
-                auth=session['access_token'],
-                requests_timeout=20
-            )
+            sp = spotipy.Spotify(auth=session['access_token'], requests_timeout=20)
+            return sp
         return None
 
 def check_auth():
@@ -86,7 +83,7 @@ def check_auth():
 
 @app.route("/")
 def index():
-    return redirect('/dashboard' if check_auth() else '/auth')
+    return redirect('/') if not check_auth() else render_template('dashboard.html')
 
 @app.route("/auth")
 def auth():
@@ -202,6 +199,7 @@ def import_playlists():
         print("All imports completed")
 
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=PORT)
