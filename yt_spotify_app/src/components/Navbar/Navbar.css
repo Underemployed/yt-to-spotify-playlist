@@ -1,0 +1,27 @@
+.navbar{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 20px;
+    padding-top: 30px;
+    padding-bottom: 50px;
+    border-bottom: 1px solid #01463f;
+}
+.navbar-brand{
+    float: left;
+}
+.navbar-links{
+    float: right;
+    display: flex;
+    align-items: center;
+}
+    
+.navbar-links > a {
+    display: flex;
+    align-items: center;
+    font-size: 20px;
+    font-weight: 500;
+    color: white;
+    text-decoration: none;
+    padding: 0 15px;
+}

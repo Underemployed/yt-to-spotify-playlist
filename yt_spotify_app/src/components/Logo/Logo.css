@@ -1,0 +1,22 @@
+.logo{
+    margin:0;
+    padding:0;
+    font-family:  Helvetica;
+}
+
+#logo_upper{
+    font-size: 24px;
+    background: linear-gradient(to right,#1ED760 0%,#0F1E0D 100%);
+    margin: 0;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+#logo_lower{
+    margin: 0;
+    font-size: 40px;
+    color: #1ED760;
+    padding-top:0px;
+    padding-left: 95px;
+    
+}
