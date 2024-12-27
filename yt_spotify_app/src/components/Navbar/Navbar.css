@@ -25,3 +25,9 @@
     text-decoration: none;
     padding: 0 15px;
 }
+
+.navbar-links > a.active{
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-color: #1ED760;
+}

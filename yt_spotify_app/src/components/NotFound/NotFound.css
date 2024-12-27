@@ -1,0 +1,9 @@
+.not-found-wrapper{
+    display: flex;
+    justify-content: center;
+    margin-top: 15%;
+}
+
+.not-found-wrapper h2{
+    color: red;
+}

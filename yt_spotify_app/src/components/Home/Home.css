@@ -1,0 +1,49 @@
+.home-wrapper{
+    margin: auto;
+  
+}
+.home-wrapper .spotify-container{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    flex-direction: column;
+    gap: 2rem;
+    margin-top: 15%;
+}
+
+.spotify-container h2{
+    font-size: 2.5rem;
+    font-weight: 500;
+}
+
+.get-started-btn{
+    border-radius: 12px;
+    width: 117px;
+    padding: 0.50rem;
+    font-size: 1rem;
+    font-weight:bold;
+    background: linear-gradient(150deg, #1ed75fc6 10%, green 75%, transparent);
+    color: white;
+    border: none;
+    cursor: pointer;
+    animation: breathing 2s infinite;
+}
+
+.get-started-btn button:hover{
+    border: #00FE48;
+    border-style:groove;
+}
+
+@keyframes breathing {
+    0% {
+      box-shadow: 0 0 5px #00fe48;
+    }
+    50% {
+      box-shadow: 0 0 10px #00fe48;
+    }
+    100% {
+      box-shadow: 0 0 5px #00fe48;
+    }
+  }
+

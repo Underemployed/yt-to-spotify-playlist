@@ -1,4 +1,4 @@
-import React from "react";
+import "react";
 
 
 import "./App.css";
@@ -7,6 +7,8 @@ import { Route ,Routes } from "react-router-dom";
 import Home from "./components/Home/Home";
 import About from "./components/About/About";
 import Credits from "./components/Credits/Credits";
+import Login from "./components/Login/Login";
+import NotFound from "./components/NotFound/NotFound";
 //import Routing from "./components/Routing/Routing";
 
 const App = () => {
@@ -19,6 +21,8 @@ const App = () => {
                 <Route path="/about" element={<About />} />
                 <Route path="/credits" element={<Credits />} />
                 <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
         </div>
