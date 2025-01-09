@@ -3,3 +3,7 @@ venv
 *.pyo
 secret.py
 env
+build
+secret.key
+main.spec
+dist/spotify_creds.enc
