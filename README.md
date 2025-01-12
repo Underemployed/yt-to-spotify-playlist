@@ -1,67 +1,157 @@
-# Youtube to Spotify Porter
+# Playlist Import API
 
-Convert YouTube playlists to Spotify playlists with intelligent song matching powered by Gemini AI.  
+## API Endpoints
 
+### POST /api/credentials
+Sets the Spotify credentials.
 
+**Request Body:**
+```json
+{
+    "client_id": "your_spotify_client_id",
+    "client_secret": "your_spotify_client_secret"
+}
+```
 
-## Setup  
+**Response:**
+```json
+{
+    "status": "success"
+}
+```
 
-1. Clone the repository:  
-    ```bash
-    git clone https://github.com/Underemployed/yt-to-spotify-playlist.git
-    cd yt-to-spotify-playlist
-    ```
+---
 
-2. Create `secret.py` from template:  
-    ```python
-    # YouTube API Key  
-    # Get from: https://console.cloud.google.com/apis/dashboard  
-    GOOGLE_API_KEY = "your_youtube_api_key"  
+### GET /api/auth-status
+Checks the authentication status.
 
-    # Spotify API Keys  
-    # Get from: https://developer.spotify.com/dashboard  
-    SPOTIFY_CLIENT_ID = "your_spotify_client_id"  
-    SPOTIFY_CLIENT_SECRET = "your_spotify_client_secret"  
+**Response:**
+```json
+{
+    "authenticated": boolean,
+    "has_credentials": boolean
+}
+```
 
-    # Gemini API Keys  
-    # Get from: https://ai.google.dev/gemini-api/docs/text-generation?lang=python  
-    GEMINI_API_KEYS = [
-        "gemini_api_key_1",
-        "gemini_api_key_2",
-        "gemini_api_key_3",
-        "gemini_api_key_4"
-    ]
-    ```  
+---
 
-3. Install dependencies:  
-    ```bash
-    pip install -r requirements.txt
-    ```  
+### POST /api/fetch-playlists
+Fetches playlists from a specified YouTube channel.
 
-4. Run the app:  
-    ```bash
-    python main.py
-    ```  
+**Request Body:**
+```json
+{
+    "channelId": "YOUTUBE_CHANNEL_ID"
+}
+```
 
-5. Access at: [http://localhost:8080](http://localhost:8080)  
+**Response:**
+```json
+[
+    {
+        "playlistId": "string",
+        "playlistName": "string"
+    },
+    {
+        "playlistId": "string",
+        "playlistName": "string"
+    }
+]
+```
 
-## Usage  
+---
 
-1. Log in with your Spotify account  
-2. Enter a YouTube channel ID  
-3. Select playlists to import  
-4. Watch real-time progress as songs are matched and imported  
+### GET /api/import-playlists
+Imports playlists from YouTube to Spotify.
 
-## Features  
+**Request Query Parameters:**
+```json
+playlists=[
+    {"playlistId":"PLH0cqYRIH9", "playlistName":"Rock Classics"},
+    {"playlistId":"PLJ8cMiYb3", "playlistName":"Summer Hits"}
+]
+```
 
-- Import YouTube playlists to Spotify with smart song matching  
-- Real-time progress tracking with server-sent events  
-- Batch processing for efficient imports  
-- Multiple API key support with automatic rotation  
-- Intelligent title/artist parsing using Gemini AI  
-- Handles remixes, covers, and various video title formats
-  
-## License  
+**Example Import Log:**
+```
+data: Starting import of playlist: Rock Classics
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
+data: success: Found Stairway to Heaven by Led Zeppelin
+data: success: Found Sweet Child O' Mine by Guns N' Roses
+data: success: Added batch of 50 tracks
+data: warning: Not found: Rare Live Performance
+data: success: Created playlist 'Rock Classics' - https://open.spotify.com/playlist/...
+
+data: Starting import of playlist: Summer Hits
+
+data: success: Found Blinding Lights by The Weeknd
+data: success: Found Dance Monkey by Tones and I
+data: success: Added batch of 50 tracks
+data: success: Created playlist 'Summer Hits' - https://open.spotify.com/playlist/...
+
+data: All imports completed
+```
+
+---
+
+## JavaScript Function for Playlist Import
+The following JavaScript function handles importing playlists on the dashboard:
+
+```javascript
+async function importSelectedPlaylists() {
+    const selected = Array.from(document.querySelectorAll('.playlist-checkbox:checked'))
+        .map(checkbox => ({
+            playlistId: checkbox.id,
+            playlistName: checkbox.nextElementSibling.textContent.trim()
+        }));
+
+    if (selected.length === 0) {
+        alert('Please select at least one playlist');
+        return;
+    }
+
+    const progressLog = document.getElementById('progressLog');
+    progressLog.innerHTML = '';
+    document.getElementById('progressContainer').classList.remove('hidden');
+
+    const eventSource = new EventSource(`/api/import-playlists?playlists=${encodeURIComponent(JSON.stringify(selected))}`);
+
+    eventSource.onmessage = function (event) {
+        const p = document.createElement('p');
+        const data = event.data;
+
+        if (data.includes('success:')) {
+            p.className = 'text-green-600';
+            const message = data.replace('success:', '').trim();
+            p.innerHTML = message.includes('spotify') ?
+                `${message.split(' - ')[0]} - <a href="${message.split(' - ')[1]}" target="_blank" class="text-blue-500 hover:underline">${message.split(' - ')[1]}</a>` :
+                message;
+        } else if (data.includes('warning:')) {
+            p.className = 'text-yellow-600';
+            p.textContent = data.replace('warning:', '').trim();
+        } else if (data.includes('error:')) {
+            p.className = 'text-red-600';
+            p.textContent = data.replace('error:', '').trim();
+        } else {
+            p.textContent = data;
+        }
+
+        progressLog.appendChild(p);
+        progressLog.scrollTop = progressLog.scrollHeight;
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'ArrowDown') {
+                progressLog.scrollTop = progressLog.scrollHeight;
+            }
+        });
+
+        if (data === 'All imports completed') {
+            importInProgress = false;
+            document.getElementById('importButton').style.display = 'block';
+            eventSource.close();
+        }
+    };
+}
+```
+
+---
 

@@ -1,4 +1,5 @@
 
+from secret import APPSCRIPT_URL
 from spotipy.oauth2 import SpotifyOAuth
 import spotipy
 import json
@@ -7,16 +8,13 @@ import requests
 from urllib.parse import quote
 from cryptography.fernet import Fernet
 import json
-
 import os
 app = Flask(__name__)
 app.secret_key = os.urandom(12).hex()
 
 
 # Client Keys and Config
-APPSCRIPT_URL = """
-https://script.google.com/macros/s/AKfycbyyK5PAIKy6EypJGQ87ELIA2x0Zeu_jq8vNHWWvb3YOww4GRLFk7UUN4fcLu10NtMcD/exec
-""".strip()
+APPSCRIPT_URL = APPSCRIPT_URL
 SPOTIFY_AUTH_URL = "https://accounts.spotify.com/authorize"
 SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
 SPOTIFY_API_BASE_URL = "https://api.spotify.com"
@@ -28,7 +26,6 @@ CLIENT_SIDE_URL = "http://127.0.0.1"
 PORT = 8080
 REDIRECT_URI = f"{CLIENT_SIDE_URL}:{PORT}/callback/"
 SCOPE = "playlist-modify-public playlist-modify-private playlist-read-private"
-
 
 
 def get_or_create_key():
@@ -121,6 +118,7 @@ auth_manager = SpotifyAuthManager(Fernet(get_or_create_key()))
 def index():
     return redirect('/profile' if not auth_manager.load_credentials() else '/auth')
 
+#  only for flask
 @app.route("/profile", methods=['GET', 'POST'])
 def profile():
     if request.method == 'POST':
@@ -131,6 +129,7 @@ def profile():
             return redirect('/auth')
     
     return render_template("profile.html", creds=auth_manager.load_credentials())
+
 
 @app.route("/auth")
 def auth():
@@ -162,6 +161,25 @@ def callback():
 def dashboard():
     return redirect('/auth') if not auth_manager.check_auth() else render_template("dashboard.html")
 
+@app.route("/api/credentials", methods=['GET', 'POST'])
+def manage_credentials():
+    if request.method == 'POST':
+        client_id = request.json.get('client_id')
+        client_secret = request.json.get('client_secret')
+        if client_id and client_secret:
+            auth_manager.save_credentials(client_id, client_secret)
+            return jsonify({"status": "success"})
+    else:
+        creds = auth_manager.load_credentials()
+        return jsonify(creds if creds else {})
+
+@app.route("/api/auth-status")
+def check_auth():
+    is_authenticated = auth_manager.check_auth()
+    return jsonify({
+        "authenticated": is_authenticated,
+        "has_credentials": bool(auth_manager.load_credentials())
+    })
 
 
 @app.route("/api/fetch-playlists", methods=['POST'])
@@ -171,7 +189,7 @@ def fetch_playlists():
         
     channel_id = request.json.get('channelId')
     
-    # Call AppScript API
+    # appscript
     response = requests.post(APPSCRIPT_URL, json={
         "action": "getPlaylists",
         "channelId": channel_id
@@ -195,14 +213,14 @@ def import_playlists():
             yield f"data: {message}\n\n"
 
             try:
-                # Get video details from AppScript
+                # video details from appscript
                 video_response = requests.post(APPSCRIPT_URL, json={
                     "action": "getVideoDetails",
                     "playlistId": playlist['playlistId']
                 } ,timeout=60)
                 videos = video_response.json()
 
-                # Handle Spotify playlist creation and track addition
+                # spotify playlist creation and track addition
                 current_playlists = sp.current_user_playlists()
                 for existing_playlist in current_playlists['items']:
                     if existing_playlist['name'] == playlist['playlistName']:
@@ -218,7 +236,7 @@ def import_playlists():
                         if video['title'] == "Deleted video":
                             continue
 
-                        # Use AppScript's Gemini search
+                        # use appscript's
                         parsed_response = requests.post(APPSCRIPT_URL, json={
                             "action": "searchWithGemini",
                             "videoTitle": video['title'],
