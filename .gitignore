@@ -7,3 +7,6 @@ build
 secret.key
 main.spec
 dist/spotify_creds.enc
+spotify_creds.enc
+.vscode
+__pycache__

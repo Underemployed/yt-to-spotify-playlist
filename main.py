@@ -1,5 +1,5 @@
 
-from secret import APPSCRIPT_URL
+from secret import APPSCRIPT_URL , BACKEND_URL, FRONTEND_URL
 from spotipy.oauth2 import SpotifyOAuth
 import spotipy
 import json
@@ -113,22 +113,36 @@ class SpotifyAuthManager:
 # Initialize auth manager
 auth_manager = SpotifyAuthManager(Fernet(get_or_create_key()))
 
-# Route handlers
-@app.route("/")
-def index():
-    return redirect('/profile' if not auth_manager.load_credentials() else '/auth')
 
-#  only for flask
-@app.route("/profile", methods=['GET', 'POST'])
-def profile():
-    if request.method == 'POST':
-        client_id = request.form.get('client_id')
-        client_secret = request.form.get('client_secret')
-        if client_id and client_secret:
-            auth_manager.save_credentials(client_id, client_secret)
-            return redirect('/auth')
-    
-    return render_template("profile.html", creds=auth_manager.load_credentials())
+@app.route("/login", methods=['POST'])
+def login():
+    client_id = request.json.get('client_id')
+    client_secret = request.json.get('client_secret')
+    if client_id and client_secret:
+        auth_manager.save_credentials(client_id, client_secret)
+        return jsonify({"status": "success"})
+    return jsonify({"error": "Invalid credentials"}), 400
+
+@app.route("/logout")
+def logout():
+    if 'access_token' in session:
+        session.pop('access_token')
+    if 'refresh_token' in session:
+        session.pop('refresh_token')
+    return jsonify({"status": "success"})
+
+
+@app.route("/api/user-profile")
+def get_user_profile():
+    sp = auth_manager.get_spotify_client()
+    if not sp:
+        return jsonify({'error': 'Not authenticated'}), 401
+        
+    user_profile = sp.current_user()
+    return jsonify({
+        'display_name': user_profile['display_name'],
+        'image_url': user_profile['images'][0]['url'] if user_profile['images'] else None
+    })
 
 
 @app.route("/auth")
@@ -143,35 +157,40 @@ def auth():
 
 @app.route("/callback/")
 def callback():
-    client_id, client_secret = auth_manager.get_credentials()
-    code_payload = {
-        "grant_type": "authorization_code",
-        "code": str(request.args['code']),
-        "redirect_uri": REDIRECT_URI,
-        'client_id': client_id,
-        'client_secret': client_secret,
-    }
-    
-    response_data = requests.post(SPOTIFY_TOKEN_URL, data=code_payload).json()
-    session['access_token'] = response_data["access_token"]
-    session['refresh_token'] = response_data["refresh_token"]
-    return redirect('/dashboard')
+    try:
+        client_id, client_secret = auth_manager.get_credentials()
+        code_payload = {
+            "grant_type": "authorization_code",
+            "code": str(request.args['code']),
+            "redirect_uri": REDIRECT_URI,
+            'client_id': client_id,
+            'client_secret': client_secret,
+        }
+        
+        response = requests.post(SPOTIFY_TOKEN_URL, data=code_payload)
+        if response.status_code != 200:
+            return redirect(f"{FRONTEND_URL}/profile?error=auth_failed")
+            
+        response_data = response.json()
+        session['access_token'] = response_data["access_token"]
+        session['refresh_token'] = response_data["refresh_token"]
+        return redirect(f"{FRONTEND_URL}/dashboard")
+    except Exception as e:
+        return redirect(f"{FRONTEND_URL}/profile?error=auth_failed")
+
 
 @app.route("/dashboard")
 def dashboard():
     return redirect('/auth') if not auth_manager.check_auth() else render_template("dashboard.html")
 
-@app.route("/api/credentials", methods=['GET', 'POST'])
+@app.route("/api/credentials", methods=['POST'])
 def manage_credentials():
-    if request.method == 'POST':
-        client_id = request.json.get('client_id')
-        client_secret = request.json.get('client_secret')
-        if client_id and client_secret:
-            auth_manager.save_credentials(client_id, client_secret)
-            return jsonify({"status": "success"})
-    else:
-        creds = auth_manager.load_credentials()
-        return jsonify(creds if creds else {})
+    client_id = request.json.get('client_id')
+    client_secret = request.json.get('client_secret')
+    if client_id and client_secret:
+        auth_manager.save_credentials(client_id, client_secret)
+        return jsonify({"status": "success"})
+    return jsonify({"error": "Invalid credentials"}), 400
 
 @app.route("/api/auth-status")
 def check_auth():

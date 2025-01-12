@@ -2,7 +2,8 @@
 
 ## API Endpoints
 
-### POST /api/credentials
+
+### POST /login
 Sets the Spotify credentials.
 
 **Request Body:**
@@ -22,14 +23,39 @@ Sets the Spotify credentials.
 
 ---
 
+### GET /logout
+Logs out the user.
+
+**Response:**
+```json
+{
+    "status": "success"
+}
+```
+
+---
+
 ### GET /api/auth-status
-Checks the authentication status.
+Gets the authentication status.
 
 **Response:**
 ```json
 {
     "authenticated": boolean,
     "has_credentials": boolean
+}
+```
+
+---
+
+### GET /api/user-profile
+Gets the User Profile (image URL can be null).
+
+**Response:**
+```json
+{
+    "display_name": "John Doe",
+    "image_url": "https://profile-image.spotify.com/user/..." | null
 }
 ```
 
@@ -154,4 +180,38 @@ async function importSelectedPlaylists() {
 ```
 
 ---
+## Workflow
 
+### 1. Initial Setup
+1. User visits React frontend.
+2. Frontend displays credential input form.
+3. User enters Spotify Client ID and Secret.
+4. Frontend calls POST /login with credentials.
+
+### 2. Spotify Authentication
+1. After successful credential save, frontend shows "Connect to Spotify" button.
+2. Button click redirects to Spotify auth page.
+3. User authorizes the application.
+4. Callback redirects to frontend dashboard.
+
+### 3. Dashboard Operations
+1. Frontend checks auth status via GET /api/auth-status.
+2. Loads user profile via GET /api/user-profile.
+3. User enters YouTube channel ID.
+4. Frontend fetches playlists via POST /api/fetch-playlists.
+5. User selects playlists to import.
+
+### 4. Import Process
+1. Frontend initiates EventSource connection to /api/import-playlists.
+2. Backend processes each playlist:
+    - Fetches video details.
+    - Matches songs using Gemini AI.
+    - Creates Spotify playlist.
+    - Adds tracks in batches.
+3. Frontend displays real-time progress.
+4. Process completes with playlist links.
+
+### 5. Session Management
+1. User can logout via GET /logout.
+2. Frontend handles auth state changes.
+3. Token refresh happens automatically.
