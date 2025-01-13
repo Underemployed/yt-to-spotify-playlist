@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Spotify Profile</title>
+    <style>
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+        }
+        .btn {
+            padding: 10px 20px;
+            background-color: #1DB954;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Spotify Credentials</h1>
+        <form method="POST">
+            <div class="form-group">
+                <label>Client ID:</label>
+                <input type="text" name="client_id" value="{{ creds.client_id if creds else '' }}" required>
+            </div>
+            <div class="form-group">
+                <label>Client Secret:</label>
+                <input type="text" name="client_secret" value="{{ creds.client_secret if creds else '' }}" required>
+            </div>
+            <button type="submit" class="btn">Save Credentials</button>
+        </form>
+    </div>
+</body>
+</html>

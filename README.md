@@ -1,67 +1,217 @@
-# Youtube to Spotify Porter
+# Playlist Import API
 
-Convert YouTube playlists to Spotify playlists with intelligent song matching powered by Gemini AI.  
+## API Endpoints
 
 
+### POST /login
+Sets the Spotify credentials.
 
-## Setup  
+**Request Body:**
+```json
+{
+    "client_id": "your_spotify_client_id",
+    "client_secret": "your_spotify_client_secret"
+}
+```
 
-1. Clone the repository:  
-    ```bash
-    git clone https://github.com/Underemployed/yt-to-spotify-playlist.git
-    cd yt-to-spotify-playlist
-    ```
+**Response:**
+```json
+{
+    "status": "success"
+}
+```
 
-2. Create `secret.py` from template:  
-    ```python
-    # YouTube API Key  
-    # Get from: https://console.cloud.google.com/apis/dashboard  
-    GOOGLE_API_KEY = "your_youtube_api_key"  
+---
 
-    # Spotify API Keys  
-    # Get from: https://developer.spotify.com/dashboard  
-    SPOTIFY_CLIENT_ID = "your_spotify_client_id"  
-    SPOTIFY_CLIENT_SECRET = "your_spotify_client_secret"  
+### GET /logout
+Logs out the user.
 
-    # Gemini API Keys  
-    # Get from: https://ai.google.dev/gemini-api/docs/text-generation?lang=python  
-    GEMINI_API_KEYS = [
-        "gemini_api_key_1",
-        "gemini_api_key_2",
-        "gemini_api_key_3",
-        "gemini_api_key_4"
-    ]
-    ```  
+**Response:**
+```json
+{
+    "status": "success"
+}
+```
 
-3. Install dependencies:  
-    ```bash
-    pip install -r requirements.txt
-    ```  
+---
 
-4. Run the app:  
-    ```bash
-    python main.py
-    ```  
+### GET /api/auth-status
+Gets the authentication status.
 
-5. Access at: [http://localhost:8080](http://localhost:8080)  
+**Response:**
+```json
+{
+    "authenticated": boolean,
+    "has_credentials": boolean
+}
+```
 
-## Usage  
+---
 
-1. Log in with your Spotify account  
-2. Enter a YouTube channel ID  
-3. Select playlists to import  
-4. Watch real-time progress as songs are matched and imported  
+### GET /api/user-profile
+Gets the User Profile (image URL can be null).
 
-## Features  
+**Response:**
+```json
+{
+    "display_name": "John Doe",
+    "image_url": "https://profile-image.spotify.com/user/..." | null
+}
+```
 
-- Import YouTube playlists to Spotify with smart song matching  
-- Real-time progress tracking with server-sent events  
-- Batch processing for efficient imports  
-- Multiple API key support with automatic rotation  
-- Intelligent title/artist parsing using Gemini AI  
-- Handles remixes, covers, and various video title formats
-  
-## License  
+---
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
+### POST /api/fetch-playlists
+Fetches playlists from a specified YouTube channel.
 
+**Request Body:**
+```json
+{
+    "channelId": "YOUTUBE_CHANNEL_ID"
+}
+```
+
+**Response:**
+```json
+[
+    {
+        "playlistId": "string",
+        "playlistName": "string"
+    },
+    {
+        "playlistId": "string",
+        "playlistName": "string"
+    }
+]
+```
+
+---
+
+### GET /api/import-playlists
+Imports playlists from YouTube to Spotify.
+
+**Request Query Parameters:**
+```json
+playlists=[
+    {"playlistId":"PLH0cqYRIH9", "playlistName":"Rock Classics"},
+    {"playlistId":"PLJ8cMiYb3", "playlistName":"Summer Hits"}
+]
+```
+
+**Example Import Log:**
+```
+data: Starting import of playlist: Rock Classics
+
+data: success: Found Stairway to Heaven by Led Zeppelin
+data: success: Found Sweet Child O' Mine by Guns N' Roses
+data: success: Added batch of 50 tracks
+data: warning: Not found: Rare Live Performance
+data: success: Created playlist 'Rock Classics' - https://open.spotify.com/playlist/...
+
+data: Starting import of playlist: Summer Hits
+
+data: success: Found Blinding Lights by The Weeknd
+data: success: Found Dance Monkey by Tones and I
+data: success: Added batch of 50 tracks
+data: success: Created playlist 'Summer Hits' - https://open.spotify.com/playlist/...
+
+data: All imports completed
+```
+
+---
+
+## JavaScript Function for Playlist Import
+The following JavaScript function handles importing playlists on the dashboard:
+
+```javascript
+async function importSelectedPlaylists() {
+    const selected = Array.from(document.querySelectorAll('.playlist-checkbox:checked'))
+        .map(checkbox => ({
+            playlistId: checkbox.id,
+            playlistName: checkbox.nextElementSibling.textContent.trim()
+        }));
+
+    if (selected.length === 0) {
+        alert('Please select at least one playlist');
+        return;
+    }
+
+    const progressLog = document.getElementById('progressLog');
+    progressLog.innerHTML = '';
+    document.getElementById('progressContainer').classList.remove('hidden');
+
+    const eventSource = new EventSource(`/api/import-playlists?playlists=${encodeURIComponent(JSON.stringify(selected))}`);
+
+    eventSource.onmessage = function (event) {
+        const p = document.createElement('p');
+        const data = event.data;
+
+        if (data.includes('success:')) {
+            p.className = 'text-green-600';
+            const message = data.replace('success:', '').trim();
+            p.innerHTML = message.includes('spotify') ?
+                `${message.split(' - ')[0]} - <a href="${message.split(' - ')[1]}" target="_blank" class="text-blue-500 hover:underline">${message.split(' - ')[1]}</a>` :
+                message;
+        } else if (data.includes('warning:')) {
+            p.className = 'text-yellow-600';
+            p.textContent = data.replace('warning:', '').trim();
+        } else if (data.includes('error:')) {
+            p.className = 'text-red-600';
+            p.textContent = data.replace('error:', '').trim();
+        } else {
+            p.textContent = data;
+        }
+
+        progressLog.appendChild(p);
+        progressLog.scrollTop = progressLog.scrollHeight;
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'ArrowDown') {
+                progressLog.scrollTop = progressLog.scrollHeight;
+            }
+        });
+
+        if (data === 'All imports completed') {
+            importInProgress = false;
+            document.getElementById('importButton').style.display = 'block';
+            eventSource.close();
+        }
+    };
+}
+```
+
+---
+## Workflow
+
+### 1. Initial Setup
+1. User visits React frontend.
+2. Frontend displays credential input form.
+3. User enters Spotify Client ID and Secret.
+4. Frontend calls POST /login with credentials.
+
+### 2. Spotify Authentication
+1. After successful credential save, frontend shows "Connect to Spotify" button.
+2. Button click redirects to Spotify auth page.
+3. User authorizes the application.
+4. Callback redirects to frontend dashboard.
+
+### 3. Dashboard Operations
+1. Frontend checks auth status via GET /api/auth-status.
+2. Loads user profile via GET /api/user-profile.
+3. User enters YouTube channel ID.
+4. Frontend fetches playlists via POST /api/fetch-playlists.
+5. User selects playlists to import.
+
+### 4. Import Process
+1. Frontend initiates EventSource connection to /api/import-playlists.
+2. Backend processes each playlist:
+    - Fetches video details.
+    - Matches songs using Gemini AI.
+    - Creates Spotify playlist.
+    - Adds tracks in batches.
+3. Frontend displays real-time progress.
+4. Process completes with playlist links.
+
+### 5. Session Management
+1. User can logout via GET /logout.
+2. Frontend handles auth state changes.
+3. Token refresh happens automatically.
