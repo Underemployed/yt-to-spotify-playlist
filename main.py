@@ -82,13 +82,15 @@ class SpotifyAuthManager:
         return (creds['client_id'], creds['client_secret']) if creds else (None, None)
 
     def get_auth_params(self):
-        client_id, _ = self.get_credentials()
+        creds = self.load_credentials()
         return {
             "response_type": "code",
             "redirect_uri": REDIRECT_URI,
             "scope": SCOPE,
-            "client_id": client_id
+            "client_id": creds['client_id']
         }
+
+
 
     def refresh_token(self):
         if 'refresh_token' not in session:
@@ -147,13 +149,16 @@ def get_user_profile():
 
 @app.route("/auth")
 def auth():
-    client_id, _ = auth_manager.get_credentials()
+    a = auth_manager.load_credentials()
+    client_id ,a = auth_manager.get_credentials()
+    
     if not client_id:
-        return redirect('/profile')
+        return redirect(f"{FRONTEND_URL}/profile")
     
     auth_params = auth_manager.get_auth_params()
     url_args = "&".join([f"{key}={quote(val)}" for key, val in auth_params.items()])
-    return redirect(f"{SPOTIFY_AUTH_URL}/?{url_args}")
+    return redirect(f"https://accounts.spotify.com/authorize?&scope=playlist-modify-public playlist-modify-private playlist-read-private&client_id={client_id}&redirect_uri=http%3A//127.0.0.1%3A8080/callback/&response_type=code")
+
 
 @app.route("/callback/")
 def callback():
@@ -176,6 +181,7 @@ def callback():
         session['refresh_token'] = response_data["refresh_token"]
         return redirect(f"{FRONTEND_URL}/dashboard")
     except Exception as e:
+        print(e)
         return redirect(f"{FRONTEND_URL}/profile?error=auth_failed")
 
 
@@ -302,4 +308,4 @@ def import_playlists():
 
 
 if __name__ == "__main__":
-    app.run(debug=False, port=PORT)
+    app.run(debug=True, port=PORT)
