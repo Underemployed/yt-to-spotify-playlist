@@ -308,4 +308,4 @@ def import_playlists():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=PORT)
+    app.run(debug=False, port=PORT)

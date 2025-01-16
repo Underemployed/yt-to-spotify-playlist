@@ -1,4 +1,5 @@
 import React, {useState} from 'react';
+import axios from 'axios';
 
 import './Login.css'
 
@@ -9,14 +10,27 @@ const Login = () => {
       client_secret:"",
     }
   );
-  
+  const [error, setError] = useState(null);
 
-  const handleSubmit = (e) => {
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log(credentials);
-  }
+    setError(null); // Clear previous errors
 
-    
+    try {
+      const response = await axios.post("http://localhost:8080/login", credentials);
+      if (response.data.status === "success") {
+        window.location.href = "http://localhost:8080/auth";
+      } else {
+        setError(response.data.error || "Invalid credentials");
+      }
+    } catch (err) {
+      console.error("Error:", err);
+      setError(err.response?.data?.error || "An error occurred while logging in");
+    }
+  };
+
+
 
   return (
     <div style={{ textAlign: "center", marginTop: "20px" }}>
@@ -31,10 +45,11 @@ const Login = () => {
               type='text' 
               className='form_text_input' 
               placeholder='Your spotify client id' 
+              required="required"
               onChange={e => setCredentials({...credentials,client_id:e.target.value})}
               value={credentials.client_id} 
             />
-            
+
           </div>
           <div>
             <label className="form_label" htmlFor="client_secret" >Client secret:</label>
@@ -43,19 +58,20 @@ const Login = () => {
               type='text' 
               className='form_text_input' 
               placeholder='Enter your spotify client secret'
+              required="required"
               onChange={e => setCredentials({...credentials,client_secret:e.target.value})}
               value={credentials.client_secret}
             />
-            
+
           </div>
           <button type='submit' className='classic_button form_submit'>Submit</button>
         </div>
-
+        {error && <p className="form_error" style={{ color: "red" }}>{error}</p>}
       </form>
+
     </section>
   </div>
   )
 }
 
 export default Login
-
