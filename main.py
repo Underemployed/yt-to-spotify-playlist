@@ -1,16 +1,18 @@
-
-from secret import APPSCRIPT_URL , BACKEND_URL, FRONTEND_URL
+from secret import APPSCRIPT_URL, BACKEND_URL, FRONTEND_URL
 from spotipy.oauth2 import SpotifyOAuth
 import spotipy
 import json
 from flask import Flask, request, redirect, render_template, jsonify, session, Response, stream_with_context
+from flask_cors import CORS
 import requests
 from urllib.parse import quote
 from cryptography.fernet import Fernet
-import json
 import os
+
 app = Flask(__name__)
 app.secret_key = os.urandom(12).hex()
+CORS(app)
+
 
 
 # Client Keys and Config
