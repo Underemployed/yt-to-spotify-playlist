@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import  {useState} from 'react';
 import axios from 'axios';
 
 import './Login.css'
@@ -19,6 +19,7 @@ const Login = () => {
 
     try {
       const response = await axios.post("http://localhost:8080/login", credentials);
+      console.log(response.data);
       if (response.data.status === "success") {
         window.location.href = "http://localhost:8080/auth";
       } else {
