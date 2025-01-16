@@ -18,8 +18,16 @@ const Login = () => {
     setError(null); // Clear previous errors
 
     try {
-      const response = await axios.post("http://localhost:8080/login", credentials);
+      //const response = await axios.post("http://localhost:8080/login", credentials);
+
+      const response = await axios.post('http://localhost:8080/login', credentials, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       console.log(response.data);
+      alert("Login successful!");
+
       if (response.data.status === "success") {
         window.location.href = "http://localhost:8080/auth";
       } else {
