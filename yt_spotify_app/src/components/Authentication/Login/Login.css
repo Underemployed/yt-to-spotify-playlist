@@ -1,0 +1,42 @@
+.form_page {
+    justify-content: center;
+}
+
+.credentials_form{
+    width: 30%;
+    padding: 32px 48px;
+    margin-top: 32px;
+    background-color: rgb(22, 64, 49);
+}
+
+.credentials_form h2{
+    font-size: 36px;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.form_inputs div{
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 16px;
+}
+
+.form_inputs label{
+    text-align: left;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 3px;
+}
+.form_text_input{
+    height: 2rem;
+    padding: 0 8px;
+    font-size: 17px;
+    font-weight: 500;
+    outline: none;
+}
+
+.form_submit{
+    height: 40px;
+    width: 100%;
+    margin: 25px 0 10px;
+}
