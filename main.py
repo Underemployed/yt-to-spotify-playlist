@@ -186,9 +186,6 @@ def callback():
         return redirect(f"{FRONTEND_URL}/profile?error=auth_failed")
 
 
-@app.route("/dashboard")
-def dashboard():
-    return redirect('/auth') if not auth_manager.check_auth() else render_template("dashboard.html")
 
 @app.route("/api/credentials", methods=['POST'])
 def manage_credentials():
