@@ -9,6 +9,7 @@ import About from "./components/About/About";
 import Credits from "./components/Credits/Credits";
 import Login from "./components/Authentication/Login/Login";
 import NotFound from "./components/NotFound/NotFound";
+import Dash from "./components/Dash/Dash";
 //import Routing from "./components/Routing/Routing";
 
 const App = () => {
@@ -23,6 +24,7 @@ const App = () => {
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="*" element={<NotFound />} />
+                <Route path="/dashboard" element={<Dash />} />
               </Routes>
             </main>
         </div>

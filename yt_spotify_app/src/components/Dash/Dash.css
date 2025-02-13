@@ -1,0 +1,104 @@
+.dash-wrapper{
+    margin: auto;
+  
+}
+.dash-wrapper .dashboard-container{
+    display: flex;
+    padding: 2rem;
+    flex-direction: column;
+    gap: 2rem;
+    margin-top: 5%;
+ 
+}
+ .dashboard-container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: rgb(22, 64, 49);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .dashboard-title {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  
+  .input-section {
+    margin-bottom: 20px;
+  }
+  
+  .channel-input {
+    width: calc(100% - 20px);
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-bottom: 10px;
+  }
+  
+  .fetch-button, .import-button {
+    background-color: #00FE48;
+    color: #07312D;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .fetch-button:hover, .import-button:hover {
+    background-color: #1ED760;
+  }
+  
+  .fetch-button:disabled, .import-button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+  
+  .playlists-section, .progress-section {
+    margin-top: 20px;
+  }
+  
+  .section-title {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+  
+  .playlists-list {
+    margin-bottom: 10px;
+  }
+  
+  .playlist-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+  }
+  
+  .playlist-checkbox {
+    margin-right: 10px;
+  }
+  
+  .progress-log {
+    background: #f9f9f9;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  
+  .success-log {
+    color: green;
+  }
+  
+  .warning-log {
+    color: orange;
+  }
+  
+  .error-log {
+    color: red;
+  }
+  
