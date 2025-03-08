@@ -20,11 +20,16 @@ const Login = () => {
     try {
       //const response = await axios.post("http://localhost:8080/login", credentials);
 
-      const response = await axios.post('http://localhost:8080/login', credentials, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await axios.post(
+        "http://localhost:8080/login",
+        credentials,
+        {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
       console.log(response.data);
       alert("Login successful!");
 

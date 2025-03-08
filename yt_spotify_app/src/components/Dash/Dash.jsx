@@ -1,6 +1,7 @@
 import  { useEffect, useState } from 'react';
 import './Dash.css';
 
+
 const Dash = () => {
   // State variables to manage user input, fetched data, and UI status
   const [channelId, setChannelId] = useState(''); // Stores the current YouTube Channel ID input
@@ -27,18 +28,22 @@ const Dash = () => {
 
   // Fetch playlists from the backend API using the provided channel ID
   const fetchPlaylists = async () => {
-    setLoading(true); // Set loading state to true to indicate API call in progress
+    setLoading(true);
     try {
-      const response = await fetch('/api/fetch-playlists', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }, // Specify JSON content type
-        body: JSON.stringify({ channelId }) // Send channelId in the request body
-      });
-      const data = await response.json(); // Parse JSON response
-      storeChannelId(channelId); // Store the channel ID after successful fetch
-      setPlaylists(Object.entries(data)); // Convert object data to array for easier mapping
+      const response = await fetch(
+        "http://127.0.0.1:8080/api/fetch-playlists",
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ channelId: channelId }),
+        }
+      );
+      const data = await response.json();
+      storeChannelId(channelId);
+      setPlaylists(Object.entries(data));
     } finally {
-      setLoading(false); // Reset loading state regardless of success or failure
+      setLoading(false);
     }
   };
 
