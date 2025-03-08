@@ -11,8 +11,9 @@ import os
 
 app = Flask(__name__)
 app.secret_key = os.urandom(12).hex()
-CORS(app)
-
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'  
+app.config['SESSION_COOKIE_SECURE'] = False
+CORS(app, supports_credentials=True, origins=["http://localhost:5173"]) 
 
 
 # Client Keys and Config
@@ -200,6 +201,9 @@ def manage_credentials():
 @app.route("/api/auth-status")
 def check_auth():
     is_authenticated = auth_manager.check_auth()
+    has_credentials = bool(auth_manager.load_credentials())
+    print(is_authenticated , has_credentials)
+
     return jsonify({
         "authenticated": is_authenticated,
         "has_credentials": bool(auth_manager.load_credentials())
@@ -208,18 +212,30 @@ def check_auth():
 
 @app.route("/api/fetch-playlists", methods=['POST'])
 def fetch_playlists():
-    if not auth_manager.check_auth():
-        return jsonify({'error': 'Not authenticated'}), 401
+    is_authenticated = auth_manager.check_auth
+    has_credentials = bool(auth_manager.load_credentials())
+    print(is_authenticated , has_credentials)
+
+    if not  has_credentials:
+        return jsonify({'error': 'Not authenticated or missing credentials'}), 401
         
     channel_id = request.json.get('channelId')
+    if not channel_id:
+        return jsonify({'error': 'Channel ID is required'}), 400
     
-    # appscript
-    response = requests.post(APPSCRIPT_URL, json={
-        "action": "getPlaylists",
-        "channelId": channel_id
-    },timeout=60)
-    
-    return jsonify(response.json())
+    try:
+        # appscript
+        response = requests.post(APPSCRIPT_URL, json={
+            "action": "getPlaylists",
+            "channelId": channel_id
+        }, timeout=60)
+        
+        if response.status_code != 200:
+            return jsonify({'error': f'AppScript error: {response.text}'}), response.status_code
+            
+        return jsonify(response.json())
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': f'Request failed: {str(e)}'}), 500
 
 @app.route("/api/import-playlists")
 def import_playlists():
