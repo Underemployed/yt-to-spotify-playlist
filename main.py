@@ -7,25 +7,35 @@ import requests
 from urllib.parse import quote
 from cryptography.fernet import Fernet
 import json
-
+from secret import APPSCRIPT_URL
 import os
+import time
+
+
+import webview
+from threading import Thread, Timer
+import webbrowser
+
 app = Flask(__name__)
 app.secret_key = os.urandom(12).hex()
 
 
+
+
 # Client Keys and Config
-APPSCRIPT_URL = """
-https://script.google.com/macros/s/AKfycbyyK5PAIKy6EypJGQ87ELIA2x0Zeu_jq8vNHWWvb3YOww4GRLFk7UUN4fcLu10NtMcD/exec
-""".strip()
+APPSCRIPT_URL = APPSCRIPT_URL
 SPOTIFY_AUTH_URL = "https://accounts.spotify.com/authorize"
 SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
 SPOTIFY_API_BASE_URL = "https://api.spotify.com"
 API_VERSION = "v1"
 SPOTIFY_API_URL = f"{SPOTIFY_API_BASE_URL}/{API_VERSION}"
 
+
+
 # Server Parameters
 CLIENT_SIDE_URL = "http://127.0.0.1"
 PORT = 8080
+
 REDIRECT_URI = f"{CLIENT_SIDE_URL}:{PORT}/callback/"
 SCOPE = "playlist-modify-public playlist-modify-private playlist-read-private"
 
@@ -119,7 +129,13 @@ auth_manager = SpotifyAuthManager(Fernet(get_or_create_key()))
 # Route handlers
 @app.route("/")
 def index():
-    return redirect('/profile' if not auth_manager.load_credentials() else '/auth')
+    # If no credentials exist, go to profile setup
+    if not auth_manager.load_credentials():
+        return redirect('/profile')
+    
+    # If we have credentials, always start fresh auth flow
+    return redirect('/auth')
+
 
 @app.route("/profile", methods=['GET', 'POST'])
 def profile():
@@ -135,7 +151,7 @@ def profile():
 @app.route("/auth")
 def auth():
     client_id, _ = auth_manager.get_credentials()
-    if not client_id:
+    if not client_id or not _: 
         return redirect('/profile')
     
     auth_params = auth_manager.get_auth_params()
@@ -176,7 +192,7 @@ def fetch_playlists():
         "action": "getPlaylists",
         "channelId": channel_id
     },timeout=60)
-    
+    print(response.json())
     return jsonify(response.json())
 
 @app.route("/api/import-playlists")
@@ -225,6 +241,7 @@ def import_playlists():
                             "channelName": video['artist']
                         } ,timeout=60)
                         parsed_details = parsed_response.json()
+                        print(parsed_details)
 
                         search_query = (f"track:{parsed_details['title']} artist:{parsed_details['artist']}"
                                       if parsed_details['artist'].strip() != "" and parsed_details['artist'].strip().lower() != "blank"
@@ -264,5 +281,11 @@ def import_playlists():
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
 
+def open_browser():
+    webbrowser.open_new(f"{CLIENT_SIDE_URL}:{PORT}")  
+
+# In your main script
 if __name__ == "__main__":
-    app.run(debug=False, port=PORT)
+    Timer(2, open_browser).start()
+    app.run(debug=False,port=PORT)
+

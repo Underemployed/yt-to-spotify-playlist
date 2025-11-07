@@ -1,20 +1,43 @@
 // By Underemployed 5/1/25
-// Appscript gemini 
+// Appscript gemini
 // appscript youtube data api v3
+
+
+// Set these in Script Properties
+function setScriptProperties() {
+    const properties = PropertiesService.getScriptProperties();
+
+    properties.setProperties({
+        'GOOGLE_API_KEY': '',
+        'SPOTIFY_CLIENT_ID': '',
+        'SPOTIFY_CLIENT_SECRET': '',
+        'GEMINI_API_KEYS': JSON.stringify([
+            '',
+            '',
+            '',
+            '',
+            ''
+        ])
+    });
+}
+// fill wats needed
+
+// Access them in your code using
 const PROPERTIES = PropertiesService.getScriptProperties();
 const GOOGLE_API_KEY = PROPERTIES.getProperty('GOOGLE_API_KEY');
 const SPOTIFY_CLIENT_ID = PROPERTIES.getProperty('SPOTIFY_CLIENT_ID');
 const SPOTIFY_CLIENT_SECRET = PROPERTIES.getProperty('SPOTIFY_CLIENT_SECRET');
 const GEMINI_API_KEYS = JSON.parse(PROPERTIES.getProperty('GEMINI_API_KEYS'));
 
+const API_KEY = GEMINI_API_KEYS[0]; // put one Gemini API key here
 
 
 
 
 function testDoPost() {
     const testRequests = [
-        { action: 'getPlaylists', channelId: 'UCW15L5aHUcW6sS_NPUYkd0A' },
-        { action: 'getVideoDetails', playlistId: 'PLJHtzsPP5ijNPtDWQtrg_QS7GmWPZAfvD' },
+        // {action: 'getPlaylists', channelId: 'UCW15L5aHUcW6sS_NPUYkd0A'},
+        // {action: 'getVideoDetails', playlistId: 'PLJHtzsPP5ijNPtDWQtrg_QS7GmWPZAfvD'},
         { action: 'searchWithGemini', videoTitle: 'Roddy Ricch - The Box', channelName: 'The Box by BBC Radio 1Xtra' }
     ];
 
@@ -30,10 +53,46 @@ function testDoPost() {
 
 
 
+function testGeminiBasic() {
+    const MODEL = 'gemini-2.0-flash';    // safest publicly available model
+    const VERSION = 'v1beta';            // correct version for this model
+
+    const url = `https://generativelanguage.googleapis.com/${VERSION}/models/${MODEL}:generateContent?key=${API_KEY}`;
+
+    const prompt = "Write a short poem about coding and coffee.";
+
+    const payload = {
+        contents: [
+            {
+                parts: [
+                    { text: prompt }
+                ]
+            }
+        ]
+    };
+
+    try {
+        const response = UrlFetchApp.fetch(url, {
+            method: 'post',
+            contentType: 'application/json',
+            payload: JSON.stringify(payload)
+        });
+
+        const data = JSON.parse(response.getContentText());
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '(no output)';
+        Logger.log("Gemini Response:");
+        Logger.log(text);
+        return text;
+
+    } catch (err) {
+        Logger.log("Gemini Test Error:");
+        Logger.log(err);
+        return null;
+    }
+}
 
 
-// 
-// 
+// YouTube API Functions
 function getChannelPlaylists(channelId = "UCW15L5aHUcW6sS_NPUYkd0A") {
     const response = YouTube.Playlists.list('snippet,contentDetails', {
         channelId: channelId,
@@ -98,8 +157,7 @@ function getAllSongs(channelId = "UCW15L5aHUcW6sS_NPUYkd0A") {
 class GeminiAI {
     constructor() {
         this.currentKeyIndex = 0;
-// 
-// 
+        this.apiKeys = GEMINI_API_KEYS; // Array of API keys
     }
 
     rotateApiKey() {
@@ -109,13 +167,16 @@ class GeminiAI {
 
     generateContent(prompt) {
         let attempts = 0;
-// 
-// 
+        const maxAttempts = this.apiKeys.length * 3; // Allow up to 3 cycles through all keys
 
         while (attempts < maxAttempts) {
             try {
+                const MODEL = 'gemini-2.0-flash';    // safest publicly available model
+                const VERSION = 'v1beta';         // stable version
+
+
                 const response = UrlFetchApp.fetch(
-                    'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent',
+                    `https://generativelanguage.googleapis.com/${VERSION}/models/${MODEL}:generateContent`,
                     {
                         method: 'post',
                         headers: {
@@ -133,8 +194,7 @@ class GeminiAI {
                     }
                 );
 
-// 
-// 
+                // success
                 return JSON.parse(response.getContentText());
             } catch (e) {
                 if (e.toString().includes('429')) {
@@ -182,12 +242,13 @@ class VideoDetailsParser {
 
         try {
             const response = this.geminiAi.generateContent(prompt);
+            console.log("response")
+            console.log(response.candidates[0].content.parts[0].text)
             if (!response) return null;
 
             const parsed = response.candidates[0].content.parts[0].text.trim().split('\n');
             const artist = parsed[0].replace('Artist:', '').trim();
             const title = parsed[1].replace('Title:', '').trim();
-
             return { artist, title };
         } catch (e) {
             console.log(`Error parsing video details: ${e}`);
@@ -196,35 +257,75 @@ class VideoDetailsParser {
     }
 }
 
-// 
-// 
+// API Endpoints
 function doPost(e) {
     const request = JSON.parse(e.postData.contents);
 
+    appendJsonToSheet("inputs", {
+        timestamp: new Date(),
+        action: request.action,
+        requestData: JSON.stringify(request)
+    });
+
+    let responseContent;
+
     switch (request.action) {
         case 'getPlaylists':
-            return ContentService.createTextOutput(
-                JSON.stringify(getChannelPlaylists(request.channelId))
-            ).setMimeType(ContentService.MimeType.JSON);
+            responseContent = JSON.stringify(getChannelPlaylists(request.channelId));
+            break;
 
         case 'getVideoDetails':
-            return ContentService.createTextOutput(
-                JSON.stringify(getPlaylistVideoDetails(request.playlistId))
-            ).setMimeType(ContentService.MimeType.JSON);
+            responseContent = JSON.stringify(getPlaylistVideoDetails(request.playlistId));
+            break;
 
         case 'getAllSongs':
-            return ContentService.createTextOutput(
-                JSON.stringify(getAllSongs(request.channelId))
-            ).setMimeType(ContentService.MimeType.JSON);
+            responseContent = JSON.stringify(getAllSongs(request.channelId));
+            break;
+
         case 'searchWithGemini':
             const geminiAi = new GeminiAI();
             const parser = new VideoDetailsParser(geminiAi);
-            const parsedDetails = parser.parseVideoDetails(
-                request.videoTitle,
-                request.channelName
-            );
-            return ContentService.createTextOutput(
-                JSON.stringify(parsedDetails)
-            ).setMimeType(ContentService.MimeType.JSON);
+            const parsedDetails = parser.parseVideoDetails(request.videoTitle, request.channelName);
+            responseContent = JSON.stringify(parsedDetails);
+            break;
+
+        default:
+            responseContent = JSON.stringify({ error: "Invalid action" });
     }
+
+    appendJsonToSheet("outputs", {
+        timestamp: new Date(),
+        action: request.action,
+        responseData: responseContent
+    });
+
+    return ContentService.createTextOutput(responseContent)
+        .setMimeType(ContentService.MimeType.JSON);
 }
+
+
+// logging helpers
+function appendJsonToSheet(sheetName, jsonData) {
+    let sheet = selectOrCreateSheet(sheetName);
+    const headers = Object.keys(jsonData);
+
+    if (sheet.getLastRow() < 1) {
+        sheet.appendRow(headers);
+    }
+
+    sheet.appendRow(Object.values(jsonData));
+}
+
+function selectOrCreateSheet(sheetName) {
+    let app = SpreadsheetApp.openByUrl("https://docs.google.com/spreadsheets/d/1WVApqejuPKEzJtvqdQXmRUJ8d8WIyL9EvsDZdaOPmgw/edit?usp=sharing");
+    let sheet = app.getSheetByName(sheetName);
+
+    if (!sheet) {
+        sheet = app.insertSheet(sheetName);
+    }
+
+    return sheet;
+}
+
+
+
