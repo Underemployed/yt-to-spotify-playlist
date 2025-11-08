@@ -16,7 +16,7 @@ app.secret_key = 'your-secret-key-here'
 
 # Initialize services
 youtube_service = build("youtube", "v3", developerKey=GOOGLE_API_KEY)
-gemini_ai = GeminiAI(api_key=GEMINI_API_KEYS[0], model_name="gemini-1.5-flash")
+gemini_ai = GeminiAI(api_key=GEMINI_API_KEYS[0], model_name="gemini-2.0-flash")
 parser = VideoDetailsParser(gemini_ai)
 
 # Client Keys and Config
@@ -62,12 +62,12 @@ def refresh_spotify_token():
     return False
 
 def get_spotify_client():
-    if 'access_token' not in session:
-        return None
+    
     sp = spotipy.Spotify(auth=session['access_token'], requests_timeout=20)
     try:
         sp.current_user()
         return sp
+
     except spotipy.exceptions.SpotifyException:
         if refresh_spotify_token():
             sp = spotipy.Spotify(auth=session['access_token'], requests_timeout=20)

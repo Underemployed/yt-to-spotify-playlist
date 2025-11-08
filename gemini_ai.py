@@ -30,6 +30,10 @@ class GeminiAI:
                     time.sleep(5)
                     self._rotate_api_key()
                     continue
+                if "404" in str(e):
+                    print(f"Gemini Model Error Probably. Update Model: {e}")
+
+                    break
                 print(f"Gemini Error: {e}")
         print("All API keys exhausted")
         return None
@@ -98,7 +102,7 @@ class VideoDetailsParser:
             return None
 
 if __name__ == "__main__":
-    gemini_ai = GeminiAI(api_key=GEMINI_API_KEYS[0], model_name="gemini-1.5-flash")
+    gemini_ai = GeminiAI(api_key=GEMINI_API_KEYS[0], model_name="gemini-2.0-flash")
     parser = VideoDetailsParser(gemini_ai)
     details = parser.parse_video_details("Roddy Ricch - The Box", "The Box by BBC Radio 1Xtra")
     print(details)
