@@ -1,175 +1,436 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
-    <title>Dashboard - YouTube to Spotify Playlist Porter</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>YouTube → Spotify Porter</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(.98);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn .3s ease forwards;
+        }
+
+        .log-success {
+            color: #22c55e;
+        }
+
+        .log-error {
+            color: #ef4444;
+        }
+
+        .log-warning {
+            color: #eab308;
+        }
+
+        .log-info {
+            color: #94a3b8;
+        }
+
+        .dropdown {
+            position: absolute;
+            width: 100%;
+            background: #0b1016;
+            border: 1px solid #1f2937;
+            border-radius: 8px;
+            z-index: 50;
+            max-height: 180px;
+            overflow: auto;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, .6);
+        }
+
+        .dropdown-item {
+            padding: 8px 10px;
+            cursor: pointer;
+            font-family: monospace;
+            color: #cbd5e1;
+        }
+
+        .dropdown-item:hover,
+        .dropdown-item.active {
+            background: #0f1724;
+            color: white;
+        }
+    </style>
 </head>
 
-<body class="bg-gray-100 p-8">
-    <div class="max-w-4xl mx-auto">
-        <h1 class="text-3xl font-bold mb-8">YouTube to Spotify Playlist Porter</h1>
+<body class="bg-[#0a0a0f] text-gray-200 font-sans min-h-screen flex flex-col">
 
-        <div class="mb-8">
-            <input type="text" id="channelId" placeholder="Enter YouTube Channel ID" class="w-full p-2 border rounded"
-                autocomplete="on" list="channelsList">
-            <datalist id="channelsList"></datalist>
-            <button id="fetchButton" onclick="fetchPlaylists()"
-                class="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                Fetch Playlists
-            </button>
-            <div id="loadingSpinner" class="hidden mt-2">
-                <svg class="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none"
-                    viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                    </path>
-                </svg>
+    <!-- Header -->
+    <header
+        class="border-b border-[#1a1a2a] px-6 py-4 flex items-center justify-between backdrop-blur-md bg-[#0a0a0f]/70 sticky top-0 z-20">
+        <h1 class="text-lg sm:text-xl font-semibold tracking-wide text-white flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#3b82f6"
+                class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5-6l3 3-3 3" />
+            </svg>
+            YouTube → Spotify Porter
+        </h1>
+        <button onclick="window.location.href='/'"
+            class="text-sm text-gray-400 hover:text-white border border-[#1e293b] rounded-md px-3 py-1 transition">
+            Disconnect
+        </button>
+    </header>
+
+    <main class="flex-1 p-6 max-w-5xl mx-auto w-full space-y-8">
+
+        <!-- Fetch -->
+        <section id="fetchSection" class="bg-[#0f1117] border border-[#1e293b] rounded-2xl p-6 shadow-md relative">
+            <h2 class="text-xl font-semibold mb-3 text-white">Fetch Playlists</h2>
+            <p class="text-gray-400 text-sm mb-5">Enter a YouTube Channel ID to pull playlists for import.</p>
+
+            <div class="flex flex-col sm:flex-row gap-3">
+                <div class="relative flex-1">
+                    <input id="channelId" placeholder="Enter YouTube Channel ID" autocomplete="off"
+                        class="bg-[#1a1d2a] text-gray-100 border border-[#27334a] focus:border-[#3b82f6] rounded-md px-4 py-2 w-full font-mono text-sm outline-none transition">
+                    <div id="historyDropdown" class="dropdown hidden" role="listbox" aria-label="channel-history"></div>
+                </div>
+                <button id="fetchButton"
+                    class="bg-[#2563eb] hover:bg-[#1d4ed8] transition text-white font-medium px-5 py-2 rounded-md">
+                    Fetch
+                </button>
             </div>
-        </div>
 
-        <div id="playlistsContainer" class="mb-8 hidden">
-            <h2 class="text-xl font-semibold mb-4">Available Playlists</h2>
-            <div id="playlists-list" class="space-y-2 mb-4"></div>
-            <button id="importButton" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-                Import Selected Playlists
-            </button>
-        </div>
+            <div id="loadingSpinner" class="hidden mt-4 flex justify-center">
+                <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        </section>
 
-        <div id="progressContainer" class="hidden">
-            <h2 class="text-xl font-semibold mb-4">Import Progress</h2>
-            <div id="progressLog" class="bg-white p-4 rounded shadow-sm h-96 overflow-y-auto"></div>
-        </div>
-    </div>
+        <!-- Playlists -->
+        <section id="playlistsContainer" class="hidden bg-[#0f1117] border border-[#1e293b] rounded-2xl p-6 shadow-md">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-white">Available Playlists</h2>
+                <button id="importButton"
+                    class="bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium px-5 py-2 rounded-md">
+                    Import Selected
+                </button>
+            </div>
+            <div id="playlists-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-gray-300"></div>
+        </section>
+
+        <!-- Terminal -->
+        <section id="progressContainer"
+            class="hidden bg-[#0f1117] border border-[#1e293b] rounded-2xl p-6 shadow-md fade-in">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-xl font-semibold text-white">Import Console</h2>
+                <div class="flex gap-2">
+                    <select id="logFilter"
+                        class="bg-[#1a1d2a] border border-[#1e293b] rounded-md px-2 py-1 text-xs text-gray-300">
+                        <option value="all">All</option>
+                        <option value="success">Success</option>
+                        <option value="warning">Warning</option>
+                        <option value="error">Error</option>
+                    </select>
+                    <button id="copyBtn"
+                        class="hidden text-xs rounded-md bg-[#1a1d2a] text-blue-400 hover:bg-[#1e293b] px-2 py-1">📋
+                        Copy URLs</button>
+                    <button id="downloadBtn"
+                        class="hidden text-xs rounded-md bg-[#1a1d2a] text-green-400 hover:bg-[#1e293b] px-2 py-1">💾
+                        Export TXT</button>
+                </div>
+            </div>
+
+            <div id="progressLog"
+                class="bg-[#0a0a10] p-4 rounded-lg text-sm font-mono text-gray-300 border border-[#1e293b] h-96 overflow-y-auto leading-relaxed tracking-wide">
+            </div>
+            <div id="importedUrls" class="mt-4 space-y-1 text-sm text-blue-400"></div>
+        </section>
+
+    </main>
 
     <script>
+        // state
         let importInProgress = false;
-        function loadChannels() {
-            const channelsList = document.getElementById('channelsList');
-            const channels = JSON.parse(localStorage.getItem('channels')) || [];
-            channelsList.innerHTML = '';
-            channels.forEach(channelId => {
-                const option = document.createElement('option');
-                option.value = channelId;
-                channelsList.appendChild(option);
-            });
-            console.log("hi");
+        let importedPlaylistUrls = [];
+        let dropdownOpen = false;
+        let dropdownItems = [];
+        let activeIndex = -1;
 
+        // elements
+        const input = document.getElementById('channelId');
+        const dd = document.getElementById('historyDropdown');
+        const fetchBtn = document.getElementById('fetchButton');
+
+        // --- history storage / rendering ---
+        function loadHistory() {
+            const history = JSON.parse(localStorage.getItem('channels') || '[]');
+            renderDropdown(history);
         }
 
-        document.addEventListener('DOMContentLoaded', function () {
-            loadChannels();
-        });
+        function saveChannel(id) {
+            if (!id) return;
+            let history = JSON.parse(localStorage.getItem('channels') || '[]');
+            // move existing to front
+            history = history.filter(x => x !== id);
+            history.unshift(id);
+            if (history.length > 10) history = history.slice(0, 10);
+            localStorage.setItem('channels', JSON.stringify(history));
+            renderDropdown(history);
+        }
 
-
-        async function fetchPlaylists() {
-            const fetchButton = document.getElementById('fetchButton');
-            const loadingSpinner = document.getElementById('loadingSpinner');
-
-            fetchButton.disabled = true;
-            loadingSpinner.classList.remove('hidden');
-
-            try {
-                const response = await fetch('/api/fetch-playlists', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ channelId: document.getElementById('channelId').value })
-
+        function renderDropdown(arr) {
+            dd.innerHTML = '';
+            dropdownItems = [];
+            activeIndex = -1;
+            if (!arr || arr.length === 0) { dd.classList.add('hidden'); return; }
+            arr.forEach((id, idx) => {
+                const el = document.createElement('div');
+                el.className = 'dropdown-item';
+                el.textContent = id;
+                // use mousedown instead of click to ensure selection before input blur
+                el.addEventListener('mousedown', (ev) => {
+                    ev.preventDefault(); // prevent focus stealing weirdness
+                    input.value = id;
+                    dd.classList.add('hidden');
+                    dropdownOpen = false;
                 });
-                const playlists = await response.json();
-                storeChannelId(document.getElementById('channelId').value);
-                displayPlaylists(playlists);
-            } finally {
-                fetchButton.disabled = false;
-                loadingSpinner.classList.add('hidden');
-            }
-        }
-        function storeChannelId(channelId) {
-            let channels = JSON.parse(localStorage.getItem('channels')) || [];
-            if (!channels.includes(channelId)) {
-                channels.push(channelId);
-                localStorage.setItem('channels', JSON.stringify(channels));
-            }
-        }
-
-        document.getElementById('fetchButton').addEventListener('click', function () {
-            const channelId = document.getElementById('channelId').value;
-            storeChannelId(channelId);
-        });
-        function displayPlaylists(playlists) {
-            const container = document.getElementById('playlists-list');
-            container.innerHTML = '';
-            Object.entries(playlists).forEach(([name, id]) => {
-                container.innerHTML += `
-                    <div class="flex items-center space-x-2">
-                        <input type="checkbox" id="${id}" class="playlist-checkbox">
-                        <label for="${id}">${name}</label>
-                    </div>`;
+                dd.appendChild(el);
+                dropdownItems.push(el);
             });
-            document.getElementById('playlistsContainer').classList.remove('hidden');
+            dd.classList.add('hidden'); // start hidden
         }
 
-        document.getElementById('importButton').addEventListener('click', function () {
-            if (importInProgress) return;
-            importInProgress = true;
-            this.style.display = 'none';
-            importSelectedPlaylists();
+        // show/hide handlers & keyboard navigation
+        input.addEventListener('keydown', (e) => {
+            const history = JSON.parse(localStorage.getItem('channels') || '[]');
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (!history.length) return;
+                toggleDropdown(true);
+                setActive(Math.min(activeIndex + 1, dropdownItems.length - 1));
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (!history.length) return;
+                toggleDropdown(true);
+                setActive(Math.max(activeIndex - 1, 0));
+            } else if (e.key === 'Enter') {
+                if (dropdownOpen && activeIndex > -1) {
+                    e.preventDefault();
+                    dropdownItems[activeIndex].dispatchEvent(new Event('mousedown', { bubbles: true }));
+                } else {
+                    // trigger fetch when Enter and no dropdown selection
+                    fetchPlaylists();
+                }
+            } else if (e.key === 'Escape') {
+                toggleDropdown(false);
+            }
         });
 
-        async function importSelectedPlaylists() {
-            const selected = Array.from(document.querySelectorAll('.playlist-checkbox:checked'))
-                .map(checkbox => ({
-                    playlistId: checkbox.id,
-                    playlistName: checkbox.nextElementSibling.textContent.trim()
-                }));
+        input.addEventListener('input', () => {
+            // if user types we still keep dropdown items but don't auto-select
+            const history = JSON.parse(localStorage.getItem('channels') || '[]');
+            if (!history.length) { toggleDropdown(false); return; }
+            // If typed text is empty, show dropdown; else show suggestions that startWith typed text
+            const q = input.value.trim().toLowerCase();
+            const filtered = q ? history.filter(h => h.toLowerCase().includes(q)) : history;
+            renderDropdown(filtered);
+            if (filtered.length) toggleDropdown(true);
+            else toggleDropdown(false);
+        });
 
-            if (selected.length === 0) {
-                alert('Please select at least one playlist');
-                return;
+        input.addEventListener('focus', () => {
+            const history = JSON.parse(localStorage.getItem('channels') || '[]');
+            if (history.length) { renderDropdown(history); toggleDropdown(true); }
+        });
+
+        // hide after a small delay to allow mousedown on item to run
+        input.addEventListener('blur', () => {
+            setTimeout(() => toggleDropdown(false), 120);
+        });
+
+        function toggleDropdown(show) {
+            dropdownOpen = !!show;
+            if (dropdownOpen) dd.classList.remove('hidden');
+            else dd.classList.add('hidden');
+            // reset active
+            if (!dropdownOpen) setActive(-1);
+        }
+
+        function setActive(i) {
+            if (activeIndex > -1 && dropdownItems[activeIndex]) dropdownItems[activeIndex].classList.remove('active');
+            activeIndex = i;
+            if (activeIndex > -1 && dropdownItems[activeIndex]) dropdownItems[activeIndex].classList.add('active');
+            // ensure visible
+            if (activeIndex > -1 && dropdownItems[activeIndex]) {
+                const el = dropdownItems[activeIndex];
+                const rect = dd.getBoundingClientRect();
+                const er = el.getBoundingClientRect();
+                if (er.bottom > rect.bottom) el.scrollIntoView(false);
+                if (er.top < rect.top) el.scrollIntoView();
             }
+        }
 
-            const progressLog = document.getElementById('progressLog');
-            progressLog.innerHTML = '';
+        // --- fetch playlists ---
+        async function fetchPlaylists() {
+            const id = input.value.trim();
+            if (!id) return alert('Enter a channel ID first');
+            fetchBtn.disabled = true;
+            document.getElementById('loadingSpinner').classList.remove('hidden');
+            try {
+                const res = await fetch('/api/fetch-playlists', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ channelId: id })
+                });
+                const data = await res.json();
+                if (!Object.keys(data).length) { alert('No playlists found'); return; }
+                saveChannel(id);
+                displayPlaylists(data);
+            } catch (err) {
+                console.error(err);
+                alert('Fetch failed — check console');
+            } finally {
+                fetchBtn.disabled = false;
+                document.getElementById('loadingSpinner').classList.add('hidden');
+            }
+        }
+        fetchBtn.addEventListener('click', fetchPlaylists);
+
+
+    // Render playlists as CARDS instead of checkboxes
+    function displayPlaylists(playlists) {
+        const grid = document.getElementById('playlists-grid');
+        grid.innerHTML = '';
+
+        Object.entries(playlists).forEach(([name, id]) => {
+            const card = document.createElement('div');
+            card.className =
+                'playlist-card p-4 border border-[#1e293b] rounded-xl bg-[#111318] cursor-pointer hover:border-blue-500 hover:shadow-md transition select-none';
+            card.dataset.id = id;
+            card.dataset.name = name;
+            card.innerHTML = `
+            <h3 class="font-semibold text-white text-base mb-1">${name}</h3>
+            <p class="text-xs text-gray-400">ID: ${id.slice(0, 12)}...</p>
+          `;
+            grid.appendChild(card);
+
+            card.addEventListener('click', () => {
+                card.classList.toggle('selected');
+                card.classList.toggle('border-blue-500');
+                card.classList.toggle('bg-[#141826]');
+            });
+        });
+
+        document.getElementById('playlistsContainer').classList.remove('hidden');
+    }
+
+
+
+        // small escape helper
+        function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+        // --- import flow ---
+        document.getElementById('importButton').addEventListener('click', startImport);
+
+        function startImport() {
+            if (importInProgress) return;
+            const selected = Array.from(document.querySelectorAll('.playlist-card.selected')).map(c => ({
+                playlistId: c.dataset.id, playlistName: c.dataset.name
+            }));
+            if (!selected.length) return alert('Select at least one playlist');
+            importInProgress = true;
+            // hide only fetch + playlist sections
+            document.getElementById('fetchButton').classList.add('hidden');
+            document.getElementById('playlistsContainer').classList.add('hidden');
             document.getElementById('progressContainer').classList.remove('hidden');
+            runImportStream(selected);
+        }
 
-            const eventSource = new EventSource(`/api/import-playlists?playlists=${encodeURIComponent(JSON.stringify(selected))}`);
+        function runImportStream(selected) {
+            const log = document.getElementById('progressLog');
+            const importedUrlsDiv = document.getElementById('importedUrls');
+            log.innerHTML = ''; importedUrlsDiv.innerHTML = ''; importedPlaylistUrls = [];
+            document.getElementById('copyBtn').classList.add('hidden');
+            document.getElementById('downloadBtn').classList.add('hidden');
 
-            eventSource.onmessage = function (event) {
+            const src = new EventSource(`/api/import-playlists?playlists=${encodeURIComponent(JSON.stringify(selected))}`);
+
+            src.onmessage = e => {
+                const data = e.data;
                 const p = document.createElement('p');
-                const data = event.data;
 
                 if (data.includes('success:')) {
-                    p.className = 'text-green-600';
-                    const message = data.replace('success:', '').trim();
-                    p.innerHTML = message.includes('spotify') ?
-                        `${message.split(' - ')[0]} - <a href="${message.split(' - ')[1]}" target="_blank" class="text-blue-500 hover:underline">${message.split(' - ')[1]}</a>` :
-                        message;
-                } else if (data.includes('warning:')) {
-                    p.className = 'text-yellow-600';
-                    p.textContent = data.replace('warning:', '').trim();
-                } else if (data.includes('error:')) {
-                    p.className = 'text-red-600';
-                    p.textContent = data.replace('error:', '').trim();
-                } else {
-                    p.textContent = data;
-                }
-
-                progressLog.appendChild(p);
-                progressLog.scrollTop = progressLog.scrollHeight;
-                document.addEventListener('keydown', function(event) {
-                    if (event.key === 'ArrowDown') {
-                        progressLog.scrollTop = progressLog.scrollHeight;
+                    p.className = 'log-success';
+                    const parts = data.replace('success:', '').split(' - ');
+                    const msg = parts[0]?.trim() || 'success';
+                    const url = parts[1]?.trim() || '';
+                    if (url) {
+                        p.innerHTML = `${escapeHtml(msg)} - <a href="${url}" target="_blank" class="underline text-blue-400">${url}</a>`;
+                        importedPlaylistUrls.push(url);
+                        const a = document.createElement('a'); a.href = url; a.textContent = url; a.className = 'block hover:text-blue-300'; a.target = '_blank';
+                        importedUrlsDiv.appendChild(a);
+                        document.getElementById('copyBtn').classList.remove('hidden');
+                        document.getElementById('downloadBtn').classList.remove('hidden');
+                    } else {
+                        p.textContent = msg;
                     }
-                });
+                } else if (data.includes('warning:')) {
+                    p.className = 'log-warning'; p.textContent = data.replace('warning:', '').trim();
+                } else if (data.includes('error:')) {
+                    p.className = 'log-error'; p.textContent = data.replace('error:', '').trim();
+                } else {
+                    p.className = 'log-info'; p.textContent = data;
+                }
+                log.appendChild(p); log.scrollTop = log.scrollHeight;
 
                 if (data === 'All imports completed') {
                     importInProgress = false;
-                    document.getElementById('importButton').style.display = 'block';
-                    eventSource.close();
+                    src.close();
+                    // restore fetch button so user can start another import
+                    document.getElementById('fetchButton').classList.remove('hidden');
+                    // keep playlists visible so they can re-import - if you want to re-show playlists, remove 'hidden' from playlistsContainer
+                    // document.getElementById('playlistsContainer').classList.remove('hidden');
                 }
             };
+
+            src.onerror = () => {
+                importInProgress = false;
+                src.close();
+                alert('Stream disconnected. Check server.');
+                document.getElementById('fetchButton').classList.remove('hidden');
+            };
         }
+
+        // --- copy / download ---
+        document.getElementById('copyBtn').addEventListener('click', async () => {
+            if (!importedPlaylistUrls.length) return;
+            await navigator.clipboard.writeText(importedPlaylistUrls.join('\n'));
+            alert('Copied playlist URLs to clipboard!');
+        });
+
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            if (!importedPlaylistUrls.length) return;
+            const blob = new Blob([importedPlaylistUrls.join('\n')], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = 'imported_playlists.txt'; a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // --- log filtering ---
+        document.getElementById('logFilter').addEventListener('change', (e) => {
+            const val = e.target.value;
+            document.querySelectorAll('#progressLog p').forEach(p => {
+                if (val === 'all') p.style.display = '';
+                else {
+                    const cls = val === 'success' ? 'log-success' : (val === 'warning' ? 'log-warning' : 'log-error');
+                    p.style.display = p.classList.contains(cls) ? '' : 'none';
+                }
+            });
+        });
+
+        // init
+        loadHistory();
     </script>
 </body>
 

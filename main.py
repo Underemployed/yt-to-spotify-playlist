@@ -56,23 +56,29 @@ def refresh_spotify_token():
     if response.status_code == 200:
         token_data = response.json()
         session['access_token'] = token_data['access_token']
+        session['token_expires_at'] = time.time() + token_data.get('expires_in', 3600)
         if 'refresh_token' in token_data:
             session['refresh_token'] = token_data['refresh_token']
         return True
     return False
 
 def get_spotify_client():
-    
+    if 'token_expires_at' in session and time.time() > session['token_expires_at'] - 360:
+        if not refresh_spotify_token():
+            return None
+
     sp = spotipy.Spotify(auth=session['access_token'], requests_timeout=20)
+
     try:
         sp.current_user()
         return sp
-
     except spotipy.exceptions.SpotifyException:
+        # Handle if token unexpectedly failed
         if refresh_spotify_token():
             sp = spotipy.Spotify(auth=session['access_token'], requests_timeout=20)
             return sp
         return None
+
 
 def check_auth():
     if 'access_token' not in session:
@@ -82,7 +88,10 @@ def check_auth():
 
 @app.route("/")
 def index():
-    return redirect('/auth')
+
+    # show landing page first
+    # return redirect('/auth')
+    return render_template("index.html")
 
 @app.route("/auth")
 def auth():
@@ -102,11 +111,18 @@ def callback():
     response_data = requests.post(SPOTIFY_TOKEN_URL, data=code_payload).json()
     session['access_token'] = response_data["access_token"]
     session['refresh_token'] = response_data["refresh_token"]
+    session['token_expires_at'] = time.time() + response_data.get('expires_in', 3600)
     return redirect('/dashboard')
 
 @app.route("/dashboard")
 def dashboard():
-    return redirect('/auth') if not check_auth() else render_template("dashboard.html")
+    return redirect('/') if not check_auth() else render_template("dashboard.html")
+
+@app.route("/logout")
+def logout():
+    # Destroy session
+    session.clear()
+    return redirect("/")
 
 @app.route("/api/fetch-playlists", methods=['POST'])
 def fetch_playlists():
@@ -231,4 +247,5 @@ def import_playlists():
 
 
 if __name__ == "__main__":
-    app.run(debug=False, port=PORT)
+    app.run(debug=True, port=PORT)
+    

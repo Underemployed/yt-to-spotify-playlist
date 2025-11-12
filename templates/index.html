@@ -1,18 +1,101 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
-  <title>YouTube to Spotify Playlist Porter</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connect to Spotify | YouTube → Spotify Porter</title>
+
+  <!-- Tailwind via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <!-- Meta -->
+  <meta name="description" content="Connect to Spotify to import your YouTube playlists instantly.">
+  <meta name="author" content="Nithin A">
 </head>
 
-<body class="bg-gray-100 min-h-screen flex items-center justify-center">
-  <div class="text-center">
-    <h1 class="text-4xl font-bold mb-8">YouTube to Spotify Playlist Porter</h1>
-    <a href="/auth" class="bg-green-500 text-white px-6 py-3 rounded-full hover:bg-green-600 transition">
-      Connect with Spotify
+<body
+  class="bg-[#0a0a0a] text-gray-200 font-sans flex flex-col items-center justify-center min-h-screen text-center px-6">
+
+  <main class="max-w-lg w-full">
+    <h1 class="text-generate text-white mb-6">
+      <span>YouTube</span> <br>
+      <span>to</span> <br>
+      <span>Spotify</span> <br>
+      <span class="text-blue-500">Playlist</span> 
+      <span class="text-blue-500">Porter</span>
+    </h1>
+
+    <style>
+      .text-generate {
+      font-size: clamp(1.8rem, 5vw, 4rem);
+      font-weight: 700;
+      line-height: 1.2;
+      text-align: center;
+      }
+
+      .text-generate span {
+      display: inline-block;
+      opacity: 0;
+      filter: blur(10px);
+      transform: translateY(10px);
+      animation: wordReveal 0.7s ease forwards;
+      }
+
+      /* Staggered animation delays for each word */
+      .text-generate span:nth-of-type(1) {
+      animation-delay: 0.1s;
+      }
+
+      .text-generate span:nth-of-type(2) {
+      animation-delay: 0.3s;
+      }
+
+      .text-generate span:nth-of-type(3) {
+      animation-delay: 0.5s;
+      }
+
+      .text-generate span:nth-of-type(4) {
+      animation-delay: 0.7s;
+      }
+
+      .text-generate span:nth-of-type(5) {
+      animation-delay: 0.9s;
+      }
+
+      @keyframes wordReveal {
+      to {
+        opacity: 1;
+        filter: blur(0px);
+        transform: translateY(0px);
+      }
+      }
+    </style>
+
+    <p class="text-gray-400 mb-10 text-base sm:text-lg">
+      Convert your favorite YouTube playlists into Spotify automatically.
+      Fast, simple, and privacy-friendly.
+    </p>
+
+    <!-- Connect Button -->
+    <a href="/auth"
+      class="inline-flex items-center justify-center gap-3 bg-[#1DB954] hover:bg-[#1ed760] transition text-white font-semibold px-8 py-3 rounded-md text-lg">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 496 512" class="w-6 h-6">
+        <path
+          d="M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm115.7 362.9c-4.2 6.9-13.3 9-20.2 4.9-55.3-33.8-124.9-41.5-206.7-22.9-7.9 1.8-15.8-3.2-17.6-11.1s3.2-15.8 11.1-17.6c88.9-20.3 165.5-11.6 227.4 26.1 6.9 4.1 9 13.2 4.9 20.2zm28.6-64.2c-5.3 8.5-16.6 11.1-25.1 5.8-63.1-38.5-159.3-49.8-233.6-27.5-9.4 2.8-19.3-2.4-22.1-11.8s2.4-19.3 11.8-22.1c83.5-24.9 187.6-12.5 258.5 31.5 8.5 5.3 11.1 16.6 5.8 25.1zm2.2-65.8c-75.6-45.4-200.7-49.4-272.7-27.3-10.5 3.2-21.7-2.7-24.9-13.3s2.7-21.7 13.3-24.9c81.7-24.8 216.8-20.2 302.8 31.2 9.5 5.7 12.6 18 6.8 27.5-5.8 9.4-18 12.5-27.5 6.8z" />
+      </svg>
+      Connect to Spotify
     </a>
-  </div>
+
+    <p class="mt-8 text-sm text-gray-600">
+      You’ll be redirected to Spotify to authorize access.
+    </p>
+  </main>
+
+  <footer class="absolute bottom-6 text-xs text-gray-600">
+    Built by <span class="text-gray-300 font-semibold">Nithin A</span> — Flask + Spotify API
+  </footer>
+
 </body>
 
 </html>
